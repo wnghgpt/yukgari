@@ -1,0 +1,11 @@
+streamlit>=1.30.0
+streamlit-lightweight-charts
+finance-datareader
+plotly>=5.18.0
+pandas>=2.0.0
+requests>=2.31.0
+pyyaml>=6.0.1
+python-dotenv>=1.0.1
+python-telegram-bot>=20.7
+# PyKIS 커뮤니티 버전.
+pykis
