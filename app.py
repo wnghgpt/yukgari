@@ -117,7 +117,14 @@ with st.sidebar:
     st.markdown("#### 🔍 종목 코드 조회")
     lookup_name = st.text_input("조회할 종목명 입력", placeholder="예: 카카오", key="lookup_input", label_visibility="collapsed")
     if lookup_name.strip():
-        lookup_results = StockDataLoader.search_stock_naver(lookup_name.strip())
+        local_list = StockDataLoader.get_stock_list()
+        lookup_results = []
+        query = lookup_name.strip().upper()
+        if local_list:
+            for name, code in local_list.items():
+                if query in name.upper():
+                    lookup_results.append({"name": name, "symbol": code})
+                    
         if lookup_results:
             for item in lookup_results[:5]:
                 st.markdown(f"`{item['name']}` : **{item['symbol']}**")
@@ -153,6 +160,7 @@ if "last_symbol" not in st.session_state or st.session_state.last_symbol != symb
     # 위젯의 내부 상태 캐시까지 강제 초기화
     st.session_state.ct_input = int(c_price)
     st.session_state.cb_input = int(c_price * 0.90)
+    st.session_state.resist_input = int(c_price)
 
 with left_col:
     with col_ctl1:
@@ -175,10 +183,19 @@ with right_col:
         col_title, col_chk = st.columns([7, 3])
         with col_title:
             st.markdown("<div style='font-size: 0.85rem; font-weight: bold; color: #3498DB;'>🎯 목표가 손익비 (RR)</div>", unsafe_allow_html=True)
+        st.markdown("""
+        <style>
+        .stCheckbox label p {
+            font-size: 0.7rem !important;
+            white-space: nowrap !important;
+            color: #d1d4dc !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
         with col_chk:
             show_lines_user = st.checkbox("보조선", value=True, key="show_user_lines")
             
-        rr_targets_sel = st.multiselect("🎯 RR 목표가 표시", [2, 3, 5, 10, 15, 20], default=[3, 5], label_visibility="collapsed")
+        rr_targets_sel = st.multiselect("🎯 RR 목표가 표시", [2, 3, 5, 10, 15, 20], default=[3], label_visibility="collapsed")
         
         st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
         
@@ -186,10 +203,14 @@ with right_col:
         st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #3498DB;'>📏 채널 범위 설정</div>", unsafe_allow_html=True)
         col_c1, col_c2 = st.columns(2)
         with col_c1:
-            channel_top = st.number_input("상단(저항)", value=st.session_state.ch_top, step=100, key="ct_input")
+            if "ct_input" not in st.session_state:
+                st.session_state.ct_input = int(c_price)
+            channel_top = st.number_input("상단(저항)", step=100, key="ct_input")
             st.session_state.ch_top = channel_top
         with col_c2:
-            channel_bot = st.number_input("하단(지지)", value=st.session_state.ch_bot, step=100, key="cb_input")
+            if "cb_input" not in st.session_state:
+                st.session_state.cb_input = int(c_price * 0.90)
+            channel_bot = st.number_input("하단(지지)", step=100, key="cb_input")
             st.session_state.ch_bot = channel_bot
             
         hard_sl = int(channel_bot * 0.96)
@@ -207,7 +228,7 @@ with right_col:
         
         col_b1, col_b2 = st.columns([4, 6])
         with col_b1:
-            st.markdown("<p style='font-size: 0.85rem; font-weight: bold; margin-top: 5px; margin-bottom: 0;'>총 투입 예산</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 0.85rem; font-weight: bold; margin-top: 5px; margin-bottom: 0;'>투입 금액</p>", unsafe_allow_html=True)
         with col_b2:
             total_budget = st.number_input("총 투입 예산(원)", value=3000000, step=100000, label_visibility="collapsed", key="budget_input")
             
@@ -222,10 +243,51 @@ with right_col:
         weights = [float(w1), float(w2), float(w3), float(w4)]
 
     with st.expander("⚖️ 단기: 돌파 시 진입 + 풀백 매수", expanded=False):
-        st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc;'>차트 보조선 출력 및 개별 파라미터 설정 예정 공간</p>", unsafe_allow_html=True)
-    with st.expander("🛡️ 안정 추구 (1:2:3:4)", expanded=False):
-        st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc;'>차트 보조선 출력 및 개별 파라미터 설정 예정 공간</p>", unsafe_allow_html=True)
-    with st.expander("⚔️ 공격 투자 (4:3:2:1)", expanded=False):
+        col_st_title, col_st_chk = st.columns([7, 3])
+        with col_st_title:
+            st.markdown("<div style='font-size: 0.85rem; font-weight: bold; color: #E74C3C;'>🎯 RR 목표가 표시</div>", unsafe_allow_html=True)
+        with col_st_chk:
+            show_lines_short = st.checkbox("보조선", value=False, key="show_short_lines")
+            
+        st_rr_targets_sel = st.multiselect("🎯 단기 RR 목표가 표시", [2, 3, 5, 10, 15, 20], default=[3], label_visibility="collapsed", key="st_rr_targets")
+        
+        st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #E74C3C;'>📏 저항선 가격 설정</div>", unsafe_allow_html=True)
+        
+        if "resist_input" not in st.session_state:
+            st.session_state.resist_input = int(c_price)
+            
+        resist_price = st.number_input("저항선 가격 (원)", step=100, key="resist_input", label_visibility="collapsed")
+        
+        st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #E74C3C;'>💰 단기 투자 예산 및 비중</div>", unsafe_allow_html=True)
+        
+        col_st_b1, col_st_b2 = st.columns([4, 6])
+        with col_st_b1:
+            st.markdown("<p style='font-size: 0.85rem; font-weight: bold; margin-top: 5px; margin-bottom: 0;'>투입 금액</p>", unsafe_allow_html=True)
+        with col_st_b2:
+            st_budget = st.number_input("단기 예산(원)", value=3000000, step=100000, label_visibility="collapsed", key="st_budget_input")
+            
+        st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc; margin-top: 8px; margin-bottom: 2px;'>1~4차 진입 비중</p>", unsafe_allow_html=True)
+        
+        col_stw1, col_stw2, col_stw3, col_stw4 = st.columns(4)
+        with col_stw1: st_w1 = st.number_input("1차 비중", 0, 100, 1, key="st_w1_input", label_visibility="collapsed")
+        with col_stw2: st_w2 = st.number_input("2차 비중", 0, 100, 1, key="st_w2_input", label_visibility="collapsed")
+        with col_stw3: st_w3 = st.number_input("3차 비중", 0, 100, 1, key="st_w3_input", label_visibility="collapsed")
+        with col_stw4: st_w4 = st.number_input("4차 비중", 0, 100, 1, key="st_w4_input", label_visibility="collapsed")
+        
+        # 연산 로직
+        st_weights = [float(st_w1), float(st_w2), float(st_w3), float(st_w4)]
+        st_sum_w = sum(st_weights)
+        if st_sum_w > 0:
+            st_prices = [resist_price * 1.02, resist_price * 0.98, resist_price * 0.94, resist_price * 0.91]
+            st_alloc = [(st_w / st_sum_w) * st_budget for st_w in st_weights]
+            st_avg_price = sum(p * a for p, a in zip(st_prices, st_alloc)) / st_budget if st_budget > 0 else 0
+            st_hard_sl = resist_price * 0.90
+            st_loss = st_budget * (1 - (st_hard_sl / st_avg_price)) if st_avg_price > 0 else 0
+            
+            pass
+    with st.expander("장기: 조정 시 매집", expanded=False):
         st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc;'>차트 보조선 출력 및 개별 파라미터 설정 예정 공간</p>", unsafe_allow_html=True)
 
 # --- 4. 차트 분석 영역 ---
@@ -258,7 +320,6 @@ with left_col:
             # 사이드바 요약 업데이트
             placeholder_summary.markdown(f"""
                 - **평단**: {int(calc_res['avg_price']):,}원
-                - **비상금**: {int(calc_res['extra_budget']):,}원
                 - **손실률**: {calc_res['loss_pct']:.2f}%
             """)
             
@@ -291,7 +352,8 @@ with left_col:
                     "data": candles,
                     "options": {
                         "upColor": "#26a69a", "downColor": "#ef5350",
-                        "borderVisible": False, "wickUpColor": "#26a69a", "wickDownColor": "#ef5350"
+                        "borderVisible": False, "wickUpColor": "#26a69a", "wickDownColor": "#ef5350",
+                        "priceLineColor": "#7FFF00"
                     }
                 },
                 {
@@ -309,13 +371,13 @@ with left_col:
             ]
             
             # 수평선 추가 (오버레이 함수)
-            def add_line(price, color, style, title):
+            def add_line(price, color, style, title, width=1):
                 line_data = [{"time": c["time"], "value": price} for c in candles]
                 series.append({
                     "type": "Line",
                     "data": line_data,
                     "options": {
-                        "color": color, "lineWidth": 1, "lineStyle": style,
+                        "color": color, "lineWidth": width, "lineStyle": style,
                         "title": title, "crosshairMarkerVisible": False,
                         "priceLineVisible": False, "lastValueVisible": True
                     }
@@ -325,11 +387,10 @@ with left_col:
                 # 매수 구역들
                 for i, zone in enumerate(calc_res['zones']):
                     lbl = f"{i+1}차"
-                    clr = "#F1C40F" if i < 3 else "#E67E22"
-                    add_line(zone['price'], clr, 2, lbl)
+                    add_line(zone['price'], "#FFFF00", 2, lbl)
                 
                 # 중요 라인들
-                add_line(calc_res['avg_price'], "#3498DB", 2, "평단")
+                add_line(calc_res['avg_price'], "#FF9800", 0, "평단", width=2)
                 add_line(calc_res['hard_stop_loss'], "#E74C3C", 0, "손절")
                 add_line(channel_top, "#FFFFFF", 0, "상단")
                 add_line(channel_bot, "#FFFFFF", 0, "하단")
@@ -338,6 +399,26 @@ with left_col:
                 for label, price in rr_targets.items():
                     simple_lbl = label.replace("RR_", "").replace("x", "배")
                     add_line(price, "#2ECC71", 0, simple_lbl)
+                    
+            if show_lines_short:
+                add_line(resist_price, "#FFFFFF", 0, "저항")
+                add_line(resist_price * 1.10, "#3498DB", 0, "10%")
+                # 옐로우 골드 분할 매수선 (1~4차)
+                add_line(resist_price * 1.02, "#FFFF00", 2, "1차(돌파)")
+                add_line(resist_price * 0.98, "#FFFF00", 2, "2차")
+                add_line(resist_price * 0.94, "#FFFF00", 2, "3차")
+                add_line(resist_price * 0.91, "#FFFF00", 2, "4차")
+                
+                if 'st_avg_price' in locals():
+                    add_line(st_avg_price, "#FF9800", 0, "평단", width=2)
+                    add_line(st_hard_sl, "#FF3131", 0, "-10%")
+                    
+                    # 단기 RR 목표가 표시 (사용자 정의)
+                    st_risk = st_avg_price - st_hard_sl
+                    if st_risk > 0 and 'st_rr_targets_sel' in locals():
+                        for rr_val in st_rr_targets_sel:
+                            rr_price = st_avg_price + (st_risk * rr_val)
+                            add_line(rr_price, "#2ECC71", 0, f"{rr_val}배")
 
             # 차트 옵션
             chart_options = {
@@ -345,7 +426,7 @@ with left_col:
                 "layout": {
                     "background": {"type": "solid", "color": "#131722"}, 
                     "textColor": "#d1d4dc",
-                    "fontSize": 10 # 글씨 크기 축소
+                    "fontSize": 8 # 글씨 크기 추가 축소
                 },
                 "grid": {"vertLines": {"color": "rgba(42, 46, 57, 0)"}, "horzLines": {"color": "rgba(42, 46, 57, 0.5)"}},
                 "crosshair": {"mode": 0},
@@ -358,56 +439,100 @@ with left_col:
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("<h4 style='margin-bottom: 15px;'>📍 분할 매수 시나리오별 비교</h4>", unsafe_allow_html=True)
             
-            scenarios = [
-                {"name": "중기: 채널 내 분할매수", "weights": weights},
-                {"name": "단기: 돌파 시 진입 + 풀백 매수", "weights": [1.0, 1.0, 1.0, 1.0]},
-                {"name": "안정 추구 (1:2:3:4)", "weights": [1.0, 2.0, 3.0, 4.0]},
-                {"name": "공격 투자 (4:3:2:1)", "weights": [4.0, 3.0, 2.0, 1.0]}
-            ]
+            sc_cols = st.columns(3)
             
-            sc_cols = st.columns(4)
-            for col, sc in zip(sc_cols, scenarios):
-                with col:
+            # 1번 카드 (중기)
+            with sc_cols[0]:
+                try:
+                    sc_res = StrategyCalculator.calculate_pyramid(
+                        channel_top=float(channel_top),
+                        channel_bot=float(channel_bot),
+                        hard_stop_loss=float(hard_sl),
+                        base_budget=float(total_budget),
+                        weights=weights
+                    )
+                    with st.container(border=True):
+                        st.markdown(f"<h5 style='color: #3498DB; margin-bottom: 10px;'>📊 중기</h5>", unsafe_allow_html=True)
+                        st.markdown(f"""
+                            <div style='font-size: 0.8rem; line-height: 1.4;'>
+                                <b>평단:</b> {int(sc_res['avg_price']):,}원 | <b>보유:</b> {int(sc_res['total_qty']):,}주<br>
+                                <b style='color: #ef5350;'>손실: {sc_res['loss_pct']:.2f}%</b>
+                            </div>
+                            <hr style='margin: 8px 0;'>
+                        """, unsafe_allow_html=True)
+                        for i, zone in enumerate(sc_res['zones']):
+                            lbl = f"{i+1}차" if i < 3 else "4차"
+                            qty = int(zone['qty'])
+                            amt_val = zone['allocate_amt'] / 10000
+                            drop_pct = ((zone['price'] / c_price) - 1) * 100
+                            color_pct = "#2ecc71" if drop_pct >= 0 else "#ef5350"
+                            st.markdown(f"""
+                                <div style='font-size: 0.65rem; white-space: nowrap; margin-bottom: 3px; display: flex; justify-content: space-between;'>
+                                    <span><b>{lbl}:</b> {int(zone['price']):,}원 <span style='color: {color_pct}; font-size: 0.6rem;'>({drop_pct:+.1f}%)</span></span>
+                                    <span style='color: #8a8d9a;'>{qty}주 ({amt_val:.1f}만)</span>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                        st.markdown(f"""
+                            <div style='font-size: 0.78rem; color: #ef5350; display: flex; justify-content: space-between;'>
+                                <b>손절선:</b>
+                                <b>{int(sc_res['hard_stop_loss']):,}원</b>
+                            </div>
+                        """, unsafe_allow_html=True)
+                except:
+                    st.error("계산 오류")
+                    
+            # 2번 카드 (단기)
+            with sc_cols[1]:
+                if 'st_avg_price' in locals() and st_sum_w > 0:
                     try:
-                        sc_res = StrategyCalculator.calculate_pyramid(
-                            channel_top=float(channel_top),
-                            channel_bot=float(channel_bot),
-                            hard_stop_loss=float(hard_sl),
-                            base_budget=float(total_budget),
-                            weights=sc['weights']
-                        )
+                        st_total_qty = int(st_budget / st_avg_price) if st_avg_price > 0 else 0
+                        st_loss_pct = (st_loss / st_budget) * 100 if st_budget > 0 else 0
                         
                         with st.container(border=True):
-                            st.markdown(f"<h5 style='color: #3498DB; margin-bottom: 10px;'>📊 {sc['name']}</h5>", unsafe_allow_html=True)
-                            
-                            # 핵심 요약
+                            st.markdown(f"<h5 style='color: #E74C3C; margin-bottom: 10px;'>⚖️ 단기</h5>", unsafe_allow_html=True)
                             st.markdown(f"""
                                 <div style='font-size: 0.8rem; line-height: 1.4;'>
-                                    <b>평단:</b> {int(sc_res['avg_price']):,}원 | <b>비상금:</b> {int(sc_res['extra_budget']):,}원<br>
-                                    <b>보유:</b> {int(sc_res['total_qty']):,}주 | <b style='color: #ef5350;'>손실: {sc_res['loss_pct']:.2f}%</b>
+                                    <b>평단:</b> {int(st_avg_price):,}원 | <b>보유:</b> {st_total_qty:,}주<br>
+                                    <b style='color: #ef5350;'>손실: {st_loss_pct:.2f}%</b>
                                 </div>
                                 <hr style='margin: 8px 0;'>
                             """, unsafe_allow_html=True)
                             
-                            # 차수별 타점 (인라인 축약)
-                            for i, zone in enumerate(sc_res['zones']):
-                                drop_pct = ((zone['price'] / c_price) - 1) * 100
-                                lbl = f"{i+1}차" if i < 3 else "4차"
-                                amt = zone['allocate_amt']
-                                qty = int(zone['qty'])
-                                amt_str = f"{amt/10000:.1f}만" if amt >= 10000 else f"{int(amt):,}원"
-                                
+                            st_labels = ["1차", "2차", "3차", "4차"]
+                            for i, (p, w) in enumerate(zip(st_prices, st_weights)):
+                                amt = st_alloc[i]
+                                qty = int(amt / p) if p > 0 else 0
+                                amt_val = amt / 10000
+                                drop_pct = ((p / c_price) - 1) * 100
                                 color_pct = "#2ecc71" if drop_pct >= 0 else "#ef5350"
                                 st.markdown(f"""
-                                    <div style='font-size: 0.78rem; margin-bottom: 3px; white-space: nowrap;'>
-                                        <b>{lbl}:</b> {int(zone['price']):,}원 
-                                        <span style='color: {color_pct};'>({drop_pct:+.1f}%)</span> 
-                                        <span style='color: #8a8d9a;'>[{qty}주]</span>
+                                    <div style='font-size: 0.65rem; white-space: nowrap; margin-bottom: 3px; display: flex; justify-content: space-between;'>
+                                        <span><b>{st_labels[i]}:</b> {int(p):,}원 <span style='color: {color_pct}; font-size: 0.6rem;'>({drop_pct:+.1f}%)</span></span>
+                                        <span style='color: #8a8d9a;'>{qty}주 ({amt_val:.1f}만)</span>
                                     </div>
                                 """, unsafe_allow_html=True)
                                 
-                    except Exception as e:
-                        st.error(f"계산 오류")
+                            st.markdown(f"""
+                                <div style='font-size: 0.78rem; color: #ef5350; display: flex; justify-content: space-between;'>
+                                    <b>손절선:</b>
+                                    <b>{int(st_hard_sl):,}원</b>
+                                </div>
+                            """, unsafe_allow_html=True)
+                    except:
+                        st.error("계산 오류")
+                else:
+                    with st.container(border=True):
+                        st.markdown(f"<h5 style='color: #E74C3C; margin-bottom: 10px;'>⚖️ 단기 전략</h5>", unsafe_allow_html=True)
+                        st.markdown("<div style='font-size: 0.8rem; color:#8a8d9a;'>단기 전략 미설정</div>", unsafe_allow_html=True)
+                        
+            # 3번 카드
+            with sc_cols[2]:
+                with st.container(border=True):
+                    st.markdown(f"<h5 style='color: #7f8c8d; margin-bottom: 10px;'>🛡️ 장기 </h5>", unsafe_allow_html=True)
+                    st.markdown("<div style='height: 100px; display: flex; align-items: center; justify-content: center; color: #7f8c8d;'>-</div>", unsafe_allow_html=True)
+                    
+
             
         except Exception as e:
             st.error(f"계산 중 오류 발생: {e}")

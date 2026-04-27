@@ -28,17 +28,17 @@ class StrategyCalculator:
         p4 = hard_stop_loss * 1.01            # 찐손절 방어선 (투매 줍기 비상금)
         prices = [p1, p2, p3, p4]
         
-        # 자금 분배 계산 (핵심: 1~3차 합 = base_budget / 4차 = alpha)
-        w_main = sum(weights[:3])
-        if w_main <= 0: raise ValueError("1~3차 매수 비중의 합은 0보다 커야 합니다.")
+        # 자금 분배 계산 (1~4차 모두 base_budget 내에서 비율대로 소진)
+        w_total = sum(weights)
+        if w_total <= 0: raise ValueError("매수 비중의 합은 0보다 커야 합니다.")
         
-        unit_amount = base_budget / w_main
+        unit_amount = base_budget / w_total
         
         amounts = [
             weights[0] * unit_amount,
             weights[1] * unit_amount,
             weights[2] * unit_amount,
-            weights[3] * unit_amount # 100% 초과 보너스 캐시
+            weights[3] * unit_amount
         ]
         
         quantities = [a / p for a, p in zip(amounts, prices)]
@@ -68,7 +68,7 @@ class StrategyCalculator:
             "total_qty": total_qty,
             "total_spent": total_spent,
             "base_budget": base_budget,
-            "extra_budget": amounts[3],
+            "extra_budget": 0,
             "loss_pct": loss_pct,
             "risk_per_share": risk_per_share,
             "total_risk_amount": total_risk_amount,

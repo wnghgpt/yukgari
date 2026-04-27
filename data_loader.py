@@ -5,17 +5,51 @@ from bs4 import BeautifulSoup
 from typing import Optional, Dict
 
 class StockDataLoader:
-    _stock_list_df = None
+    _local_cache = None
+
+    @staticmethod
+    def update_local_cache():
+        import os
+        import json
+        cache_file = os.path.join(os.path.dirname(__file__), 'stock_list.json')
+        
+        # 캐시 파일이 이미 있다면 로드
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    StockDataLoader._local_cache = json.load(f)
+                    if StockDataLoader._local_cache:
+                        return StockDataLoader._local_cache
+            except Exception as e:
+                print(f"Error loading stock cache: {e}")
+
+        # 캐시 파일이 없으면 새로 생성
+        try:
+            url = 'https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13'
+            df = pd.read_html(url, encoding='cp949')[0]
+            df['종목코드'] = df['종목코드'].astype(str).str.zfill(6)
+            
+            mapping = {}
+            for _, row in df.iterrows():
+                mapping[str(row['회사명']).strip()] = str(row['종목코드']).strip()
+            
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(mapping, f, ensure_ascii=False, indent=4)
+            
+            StockDataLoader._local_cache = mapping
+            return mapping
+        except Exception as e:
+            print(f"Failed to create local cache: {e}")
+            # 최후의 수단: 주요 대형주라도 하드코딩
+            fallback = {"삼성전자": "005930", "SK하이닉스": "000660", "LG에너지솔루션": "373220", "삼성바이오로직스": "207940", "현대차": "005380", "기아": "000270", "셀트리온": "068270", "POSCO홀딩스": "005490", "NAVER": "035420", "카카오": "035720", "네이버": "035420"}
+            StockDataLoader._local_cache = fallback
+            return fallback
 
     @staticmethod
     def get_stock_list():
-        if StockDataLoader._stock_list_df is None:
-            try:
-                StockDataLoader._stock_list_df = fdr.StockListing('KRX')
-            except Exception as e:
-                print(f"Error loading stock listing: {e}")
-                return None
-        return StockDataLoader._stock_list_df
+        if StockDataLoader._local_cache is None:
+            StockDataLoader.update_local_cache()
+        return StockDataLoader._local_cache
 
     @staticmethod
     def get_ohlcv(symbol: str, count: int = 200, period: str = 'D') -> Optional[pd.DataFrame]:
@@ -95,27 +129,22 @@ class StockDataLoader:
                 return {"name": symbol_or_name, "symbol": symbol_or_name}
         
         # 2. 이름인 경우 코드 찾기
-        # 2-1. 네이버 자동완성 API 우선 적용
+        # 2-1. 로컬 오프라인 JSON 캐시 1순위 검색
+        local_list = StockDataLoader.get_stock_list()
+        if local_list:
+            # 완전 일치 탐색
+            if symbol_or_name in local_list:
+                return {"name": symbol_or_name, "symbol": local_list[symbol_or_name]}
+            
+            # 부분 일치 탐색
+            for k, v in local_list.items():
+                if symbol_or_name in k:
+                    return {"name": k, "symbol": v}
+
+        # 2-2. 네이버 자동완성 API 백업
         naver_matches = StockDataLoader.search_stock_naver(symbol_or_name)
         if naver_matches:
             return naver_matches[0]
-
-        # 2-2. FinanceDataReader 백업 활용
-        try:
-            df = StockDataLoader.get_stock_list()
-            if df is not None and not df.empty:
-                # 완전 일치 탐색
-                match = df[df['Name'].str.upper() == symbol_or_name.upper()]
-                if not match.empty:
-                    return {"name": str(match.iloc[0]['Name']), "symbol": str(match.iloc[0]['Code'])}
-                
-                # 부분 일치 탐색
-                match_partial = df[df['Name'].str.contains(symbol_or_name, case=False, na=False)]
-                if not match_partial.empty:
-                    return {"name": str(match_partial.iloc[0]['Name']), "symbol": str(match_partial.iloc[0]['Code'])}
-        except Exception as e:
-            print(f"Stock search error: {e}")
-            pass
 
         return {"name": symbol_or_name, "symbol": "005930"} # 최후의 수단: 삼성전자 코드라도 반환하여 에러 방지
 
