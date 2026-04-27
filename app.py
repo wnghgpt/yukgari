@@ -1,10 +1,19 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from streamlit_lightweight_charts import renderLightweightCharts
+from dotenv import load_dotenv
+
 from data_loader import StockDataLoader
 from calculator import StrategyCalculator
-from dotenv import load_dotenv
+
+# 컴포넌트 임포트
+from components.styles import apply_custom_styles
+from components.sidebar import render_sidebar
+from components.settings_panel import render_settings_panel
+from components.chart import render_chart
+from components.scenario_cards import render_scenario_cards
+from components.order_panel import render_order_panel
+from components.account_panel import render_account_panel
 
 load_dotenv()
 
@@ -16,85 +25,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# 커스텀 스타일 적용
+apply_custom_styles()
+
 if "watch_orders" not in st.session_state:
     st.session_state.watch_orders = []
 if "registered_orders" not in st.session_state:
     st.session_state.registered_orders = []
-
-# --- 커스텀 스타일 ---
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; }
-    .stMetric { background-color: #1e222d; padding: 15px; border-radius: 10px; border: 1px solid #2a2e39; }
-    div[data-testid="stExpander"] { border: 1px solid #2a2e39; border-radius: 10px; }
-    
-    /* 여백 최소화 (상단 바 가림 방지) */
-    [data-testid="stMainBlockContainer"],
-    [data-testid="stAppViewBlockContainer"],
-    .block-container {
-        padding-top: 3rem !important;
-        padding-bottom: 1rem !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    
-    /* 1. 전체 컴포넌트 간 수직 간격 축소 */
-    div[data-testid="stVerticalBlock"] {
-        gap: 0.7rem !important;
-    }
-    
-    /* 2. 구분선(hr) 상하 여백 축소 */
-    hr {
-        margin-top: 7px !important;
-        margin-bottom: 7px !important;
-        border-color: #2a2e39 !important;
-    }
-    
-    /* 3. 멀티셀렉트(목표가) 박스 높이/패딩 축소 */
-    div[data-testid="stMultiSelect"] > div:first-child {
-        padding: 0px !important;
-        min-height: 24px !important;
-    }
-    div[data-testid="stMultiSelect"] div[role="button"] {
-        padding: 1px 4px !important;
-        min-height: 22px !important;
-        font-size: 0.75rem !important;
-    }
-    div[data-testid="stMultiSelect"] span {
-        font-size: 0.75rem !important;
-    }
-    
-    /* 검색창 및 입력 박스 크기/폰트 축소 */
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input {
-        font-size: 0.8rem !important;
-        padding: 4px 8px !important;
-        height: 30px !important;
-    }
-    
-    /* 입력창 라벨 폰트 축소 및 여백 제거 */
-    div[data-testid="stNumberInput"] label {
-        font-size: 0.75rem !important;
-        margin-bottom: 0px !important;
-        padding-bottom: 2px !important;
-    }
-    
-    /* 컨테이너 테두리 내부 여백 축소 */
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        padding: 10px !important;
-    }
-    
-    /* 숫자 입력 박스 +, - 버튼 숨기기 */
-    button[data-testid="stNumberInputStepDown"],
-    button[data-testid="stNumberInputStepUp"] {
-        display: none !important;
-    }
-    /* 버튼이 사라진 공간만큼 입력창 너비 확장 */
-    div[data-testid="stNumberInput"] div[role="group"] > div {
-        width: 100% !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
 
 # --- 데이터 캐싱 (성능 향상) ---
 @st.cache_data(ttl=600)
@@ -110,41 +47,12 @@ def cached_current_price(symbol):
     return StockDataLoader.get_current_price(symbol)
 
 # --- 1. 사이드바 (앱 정보 및 실시간 수치 요약) ---
-with st.sidebar:
-    st.title("📈 시각화 봇 V2")
-    st.info("한투 API 의존성이 제거된 분석 전용 버전입니다.")
-    st.divider()
-    
-    # 전략 수치 요약 상시 표시 (사이드바)
-    st.markdown("#### 📊 전략 요약")
-    placeholder_summary = st.empty()
-    
-    st.divider()
-    
-    # 🔍 종목 코드 조회기 추가
-    st.markdown("#### 🔍 종목 코드 조회")
-    lookup_name = st.text_input("조회할 종목명 입력", placeholder="예: 카카오", key="lookup_input", label_visibility="collapsed")
-    if lookup_name.strip():
-        local_list = StockDataLoader.get_stock_list()
-        lookup_results = []
-        query = lookup_name.strip().upper()
-        if local_list:
-            for name, code in local_list.items():
-                if query in name.upper():
-                    lookup_results.append({"name": name, "symbol": code})
-                    
-        if lookup_results:
-            for item in lookup_results[:5]:
-                st.markdown(f"`{item['name']}` : **{item['symbol']}**")
-        else:
-            st.markdown("<span style='color: #ef5350; font-size: 0.8rem;'>조회 결과 없음</span>", unsafe_allow_html=True)
-            
-    st.divider()
-    
+placeholder_summary = render_sidebar()
+
 # --- 2. 메인 레이아웃 (차트 vs 설정패널) ---
 left_col, right_col = st.columns([7, 3])
 
-# 검색창을 차트 바로 위 콤팩트 레이아웃으로 배치하기 위한 nested columns
+# 검색창을 차트 바로 위 콤팩트 레이아웃으로 배치
 with left_col:
     col_ctl0, col_ctl1, col_ctl2, col_ctl3 = st.columns([2, 2, 3, 3])
     with col_ctl0:
@@ -165,14 +73,12 @@ if "last_symbol" not in st.session_state or st.session_state.last_symbol != symb
     st.session_state.last_symbol = symbol
     st.session_state.ch_top = int(c_price)
     st.session_state.ch_bot = int(c_price * 0.90)
-    # 위젯의 내부 상태 캐시까지 강제 초기화
     st.session_state.ct_input = int(c_price)
     st.session_state.cb_input = int(c_price * 0.90)
     st.session_state.resist_input = int(c_price)
 
 with left_col:
     with col_ctl1:
-        # 종목명, 코드, 현재가를 깔끔하게 배치
         st.markdown(f"""
             <div style='display: flex; flex-direction: column; padding-top: 2px; gap: 0;'>
                 <div>
@@ -183,120 +89,29 @@ with left_col:
             </div>
         """, unsafe_allow_html=True)
 
+# --- 3. 설정 패널 ---
 with right_col:
-    st.markdown("<div style='font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #3498DB;'>⚙️ 전략 시뮬레이션</div>", unsafe_allow_html=True)
-    
-    with st.expander("📊 중기: 채널 내 분할매수", expanded=True):
-        # 1. 최상단 보조선 체크박스 & 목표가 손익비
-        col_title, col_chk = st.columns([7, 3])
-        with col_title:
-            st.markdown("<div style='font-size: 0.85rem; font-weight: bold; color: #3498DB;'>🎯 목표가 손익비 (RR)</div>", unsafe_allow_html=True)
-        st.markdown("""
-        <style>
-        .stCheckbox label p {
-            font-size: 0.7rem !important;
-            white-space: nowrap !important;
-            color: #d1d4dc !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        with col_chk:
-            show_lines_user = st.checkbox("보조선", value=True, key="show_user_lines")
-            
-        rr_targets_sel = st.multiselect("🎯 RR 목표가 표시", [2, 3, 5, 10, 15, 20], default=[3], label_visibility="collapsed")
-        
-        st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
-        
-        # 2. 채널 범위 설정
-        st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #3498DB;'>📏 채널 범위 설정</div>", unsafe_allow_html=True)
-        col_c1, col_c2 = st.columns(2)
-        with col_c1:
-            if "ct_input" not in st.session_state:
-                st.session_state.ct_input = int(c_price)
-            channel_top = st.number_input("상단(저항)", step=100, key="ct_input")
-            st.session_state.ch_top = channel_top
-        with col_c2:
-            if "cb_input" not in st.session_state:
-                st.session_state.cb_input = int(c_price * 0.90)
-            channel_bot = st.number_input("하단(지지)", step=100, key="cb_input")
-            st.session_state.ch_bot = channel_bot
-            
-        hard_sl = int(channel_bot * 0.96)
-        
-        col_h1, col_h2 = st.columns([6, 4])
-        with col_h1:
-            st.markdown(f"<p style='font-size: 0.85rem; color: #d1d4dc; margin-top: 2px; margin-bottom: 0;'>최종 손절선 (-4%)</p>", unsafe_allow_html=True)
-        with col_h2:
-            st.markdown(f"<p style='font-size: 0.95rem; font-weight: bold; text-align: right; margin-top: 2px; margin-bottom: 0;'>{hard_sl:,} 원</p>", unsafe_allow_html=True)
-            
-        st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
-        
-        # 3. 진입 금액 및 비중 통합
-        st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #3498DB;'>💰 진입 금액 및 비중</div>", unsafe_allow_html=True)
-        
-        col_b1, col_b2 = st.columns([4, 6])
-        with col_b1:
-            st.markdown("<p style='font-size: 0.85rem; font-weight: bold; margin-top: 5px; margin-bottom: 0;'>투입 금액</p>", unsafe_allow_html=True)
-        with col_b2:
-            total_budget = st.number_input("총 투입 예산(원)", value=3000000, step=100000, label_visibility="collapsed", key="budget_input")
-            
+    params = render_settings_panel(c_price)
 
-        
-        col_w1, col_w2, col_w3, col_w4 = st.columns(4)
-        with col_w1: w1 = st.number_input("1차", 0, 100, 3, key="w1_input")
-        with col_w2: w2 = st.number_input("2차", 0, 100, 3, key="w2_input")
-        with col_w3: w3 = st.number_input("3차", 0, 100, 3, key="w3_input")
-        with col_w4: w4 = st.number_input("4차", 0, 100, 0, key="w4_input")
-        
-        weights = [float(w1), float(w2), float(w3), float(w4)]
+mid_term = params["mid_term"]
+short_term = params["short_term"]
 
-    with st.expander("⚖️ 단기: 돌파 시 진입 + 풀백 매수", expanded=False):
-        col_st_title, col_st_chk = st.columns([7, 3])
-        with col_st_title:
-            st.markdown("<div style='font-size: 0.85rem; font-weight: bold; color: #E74C3C;'>🎯 RR 목표가 표시</div>", unsafe_allow_html=True)
-        with col_st_chk:
-            show_lines_short = st.checkbox("보조선", value=False, key="show_short_lines")
-            
-        st_rr_targets_sel = st.multiselect("🎯 단기 RR 목표가 표시", [2, 3, 5, 10, 15, 20], default=[3], label_visibility="collapsed", key="st_rr_targets")
-        
-        st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #E74C3C;'>📏 저항선 가격 설정</div>", unsafe_allow_html=True)
-        
-        if "resist_input" not in st.session_state:
-            st.session_state.resist_input = int(c_price)
-            
-        resist_price = st.number_input("저항선 가격 (원)", step=100, key="resist_input", label_visibility="collapsed")
-        
-        st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #E74C3C;'>💰 단기 투자 예산 및 비중</div>", unsafe_allow_html=True)
-        
-        col_st_b1, col_st_b2 = st.columns([4, 6])
-        with col_st_b1:
-            st.markdown("<p style='font-size: 0.85rem; font-weight: bold; margin-top: 5px; margin-bottom: 0;'>투입 금액</p>", unsafe_allow_html=True)
-        with col_st_b2:
-            st_budget = st.number_input("단기 예산(원)", value=3000000, step=100000, label_visibility="collapsed", key="st_budget_input")
-            
-        st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc; margin-top: 8px; margin-bottom: 2px;'>1~4차 진입 비중</p>", unsafe_allow_html=True)
-        
-        col_stw1, col_stw2, col_stw3, col_stw4 = st.columns(4)
-        with col_stw1: st_w1 = st.number_input("1차 비중", 0, 100, 1, key="st_w1_input", label_visibility="collapsed")
-        with col_stw2: st_w2 = st.number_input("2차 비중", 0, 100, 1, key="st_w2_input", label_visibility="collapsed")
-        with col_stw3: st_w3 = st.number_input("3차 비중", 0, 100, 1, key="st_w3_input", label_visibility="collapsed")
-        with col_stw4: st_w4 = st.number_input("4차 비중", 0, 100, 1, key="st_w4_input", label_visibility="collapsed")
-        
-        # 연산 로직
-        st_weights = [float(st_w1), float(st_w2), float(st_w3), float(st_w4)]
-        st_sum_w = sum(st_weights)
-        if st_sum_w > 0:
-            st_prices = [resist_price * 1.02, resist_price * 0.98, resist_price * 0.94, resist_price * 0.91]
-            st_alloc = [(st_w / st_sum_w) * st_budget for st_w in st_weights]
-            st_avg_price = sum(p * a for p, a in zip(st_prices, st_alloc)) / st_budget if st_budget > 0 else 0
-            st_hard_sl = resist_price * 0.90
-            st_loss = st_budget * (1 - (st_hard_sl / st_avg_price)) if st_avg_price > 0 else 0
-            
-            pass
-    with st.expander("장기: 조정 시 매집", expanded=False):
-        st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc;'>차트 보조선 출력 및 개별 파라미터 설정 예정 공간</p>", unsafe_allow_html=True)
+# 단기 전략 연산 로직
+st_sum_w = sum(short_term["weights"])
+st_prices = []
+st_alloc = []
+st_avg_price = 0
+st_hard_sl = 0
+st_loss = 0
+
+if st_sum_w > 0:
+    resist_price = short_term["resist_price"]
+    st_budget = short_term["budget"]
+    st_prices = [resist_price * 1.02, resist_price * 0.98, resist_price * 0.94, resist_price * 0.91]
+    st_alloc = [(w / st_sum_w) * st_budget for w in short_term["weights"]]
+    st_avg_price = sum(p * a for p, a in zip(st_prices, st_alloc)) / st_budget if st_budget > 0 else 0
+    st_hard_sl = resist_price * 0.90
+    st_loss = st_budget * (1 - (st_hard_sl / st_avg_price)) if st_avg_price > 0 else 0
 
 # --- 4. 차트 분석 영역 ---
 with left_col:
@@ -306,23 +121,21 @@ with left_col:
         period_option = st.radio("주기", ["일봉", "주봉"], horizontal=True, label_visibility="collapsed")
     
     period_code = 'D' if period_option == "일봉" else 'W'
-    
     df_ohlcv = cached_ohlcv(symbol, count=candle_count, period=period_code)
     
     if df_ohlcv is not None and not df_ohlcv.empty:
-        # 전략 계산
         try:
             calc_res = StrategyCalculator.calculate_pyramid(
-                channel_top=float(channel_top),
-                channel_bot=float(channel_bot),
-                hard_stop_loss=float(hard_sl),
-                base_budget=float(total_budget),
-                weights=weights
+                channel_top=float(mid_term["channel_top"]),
+                channel_bot=float(mid_term["channel_bot"]),
+                hard_stop_loss=float(mid_term["hard_sl"]),
+                base_budget=float(mid_term["budget"]),
+                weights=mid_term["weights"]
             )
             rr_targets = StrategyCalculator.calculate_rr_targets(
                 avg_price=calc_res['avg_price'],
                 hard_stop_loss=calc_res['hard_stop_loss'],
-                rr_multipliers=rr_targets_sel
+                rr_multipliers=mid_term["rr_targets"]
             )
             
             # 사이드바 요약 업데이트
@@ -331,497 +144,18 @@ with left_col:
                 - **손실률**: {calc_res['loss_pct']:.2f}%
             """)
             
-            pass
+            # 차트 렌더링
+            render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price)
             
-            # --- 차트 데이터 구성 ---
-            plot_df = df_ohlcv.sort_values('Date', ascending=True)
-            candles = []
-            volume_data = []
+            # 시나리오 카드 렌더링
+            render_scenario_cards(mid_term, short_term, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, short_term["weights"], st_alloc, short_term["budget"], st_loss)
             
-            for _, row in plot_df.iterrows():
-                time_val = row['Date'].strftime('%Y-%m-%d') if isinstance(row['Date'], (pd.Timestamp, datetime)) else str(row['Date'])[:10]
-                candles.append({
-                    "time": time_val,
-                    "open": float(row['Open']),
-                    "high": float(row['High']),
-                    "low": float(row['Low']),
-                    "close": float(row['Close'])
-                })
-                volume_data.append({
-                    "time": time_val,
-                    "value": float(row['Volume']),
-                    "color": 'rgba(38, 166, 154, 0.5)' if row['Close'] >= row['Open'] else 'rgba(239, 83, 80, 0.5)'
-                })
+            # 주문 패널 렌더링
+            render_order_panel(symbol, name, c_price)
             
-            # 시리즈 구성
-            series = [
-                {
-                    "type": "Candlestick",
-                    "data": candles,
-                    "options": {
-                        "upColor": "#26a69a", "downColor": "#ef5350",
-                        "borderVisible": False, "wickUpColor": "#26a69a", "wickDownColor": "#ef5350",
-                        "priceLineColor": "#7FFF00"
-                    }
-                },
-                {
-                    "type": "Histogram",
-                    "data": volume_data,
-                    "options": {
-                        "color": "#26a69a",
-                        "priceFormat": {"type": "volume"},
-                        "priceScaleId": "", # Overlay mode
-                    },
-                    "priceScale": {
-                        "scaleMargins": {"top": 0.8, "bottom": 0}
-                    }
-                }
-            ]
+            # 계좌 패널 렌더링
+            render_account_panel(c_price)
             
-            # 수평선 추가 (오버레이 함수)
-            def add_line(price, color, style, title, width=1):
-                line_data = [{"time": c["time"], "value": price} for c in candles]
-                series.append({
-                    "type": "Line",
-                    "data": line_data,
-                    "options": {
-                        "color": color, "lineWidth": width, "lineStyle": style,
-                        "title": title, "crosshairMarkerVisible": False,
-                        "priceLineVisible": False, "lastValueVisible": True
-                    }
-                })
-
-            if show_lines_user:
-                # 매수 구역들
-                for i, zone in enumerate(calc_res['zones']):
-                    lbl = f"{i+1}차"
-                    add_line(zone['price'], "#FFFF00", 2, lbl)
-                
-                # 중요 라인들
-                add_line(calc_res['avg_price'], "#FF9800", 0, "평단", width=2)
-                add_line(calc_res['hard_stop_loss'], "#E74C3C", 0, "손절")
-                add_line(channel_top, "#FFFFFF", 0, "상단")
-                add_line(channel_bot, "#FFFFFF", 0, "하단")
-                
-                # 목표가들
-                for label, price in rr_targets.items():
-                    simple_lbl = label.replace("RR_", "").replace("x", "배")
-                    add_line(price, "#2ECC71", 0, simple_lbl)
-                    
-            if show_lines_short:
-                add_line(resist_price, "#FFFFFF", 0, "저항")
-                add_line(resist_price * 1.10, "#3498DB", 0, "10%")
-                # 옐로우 골드 분할 매수선 (1~4차)
-                add_line(resist_price * 1.02, "#FFFF00", 2, "1차(돌파)")
-                add_line(resist_price * 0.98, "#FFFF00", 2, "2차")
-                add_line(resist_price * 0.94, "#FFFF00", 2, "3차")
-                add_line(resist_price * 0.91, "#FFFF00", 2, "4차")
-                
-                if 'st_avg_price' in locals():
-                    add_line(st_avg_price, "#FF9800", 0, "평단", width=2)
-                    add_line(st_hard_sl, "#FF3131", 0, "-10%")
-                    
-                    # 단기 RR 목표가 표시 (사용자 정의)
-                    st_risk = st_avg_price - st_hard_sl
-                    if st_risk > 0 and 'st_rr_targets_sel' in locals():
-                        for rr_val in st_rr_targets_sel:
-                            rr_price = st_avg_price + (st_risk * rr_val)
-                            add_line(rr_price, "#2ECC71", 0, f"{rr_val}배")
-
-            # 차트 옵션
-            chart_options = {
-                "height": 500,
-                "layout": {
-                    "background": {"type": "solid", "color": "#131722"}, 
-                    "textColor": "#d1d4dc",
-                    "fontSize": 8 # 글씨 크기 추가 축소
-                },
-                "grid": {"vertLines": {"color": "rgba(42, 46, 57, 0)"}, "horzLines": {"color": "rgba(42, 46, 57, 0.5)"}},
-                "crosshair": {"mode": 0},
-                "timeScale": {"borderColor": "rgba(197, 203, 206, 0.8)", "rightOffset": 40}
-            }
-            
-            renderLightweightCharts([{"chart": chart_options, "series": series}], key='chart_v2')
-            
-            # --- 차트 하단: 4가지 시나리오 가로 병렬 배치 ---
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("<h4 style='margin-bottom: 15px;'>📍 분할 매수 시나리오별 비교</h4>", unsafe_allow_html=True)
-            
-            sc_cols = st.columns(3)
-            
-            # 1번 카드 (중기)
-            with sc_cols[0]:
-                try:
-                    sc_res = StrategyCalculator.calculate_pyramid(
-                        channel_top=float(channel_top),
-                        channel_bot=float(channel_bot),
-                        hard_stop_loss=float(hard_sl),
-                        base_budget=float(total_budget),
-                        weights=weights
-                    )
-                    with st.container(border=True):
-                        st.markdown(f"<h5 style='color: #3498DB; margin-bottom: 10px;'>📊 중기</h5>", unsafe_allow_html=True)
-                        st.markdown(f"""
-                            <div style='font-size: 0.8rem; line-height: 1.4;'>
-                                <b>평단:</b> {int(sc_res['avg_price']):,}원 | <b>보유:</b> {int(sc_res['total_qty']):,}주<br>
-                                <b style='color: #ef5350;'>손실: {sc_res['loss_pct']:.2f}%</b>
-                            </div>
-                            <hr style='margin: 8px 0;'>
-                        """, unsafe_allow_html=True)
-                        for i, zone in enumerate(sc_res['zones']):
-                            lbl = f"{i+1}차" if i < 3 else "4차"
-                            qty = int(zone['qty'])
-                            amt_val = zone['allocate_amt'] / 10000
-                            drop_pct = ((zone['price'] / c_price) - 1) * 100
-                            color_pct = "#2ecc71" if drop_pct >= 0 else "#ef5350"
-                            st.markdown(f"""
-                                <div style='font-size: 0.65rem; white-space: nowrap; margin-bottom: 3px; display: flex; justify-content: space-between;'>
-                                    <span><b>{lbl}:</b> {int(zone['price']):,}원 <span style='color: {color_pct}; font-size: 0.6rem;'>({drop_pct:+.1f}%)</span></span>
-                                    <span style='color: #8a8d9a;'>{qty}주 ({amt_val:.1f}만)</span>
-                                </div>
-                            """, unsafe_allow_html=True)
-                            
-                        st.markdown(f"""
-                            <div style='font-size: 0.78rem; color: #ef5350; display: flex; justify-content: space-between;'>
-                                <b>손절선:</b>
-                                <b>{int(sc_res['hard_stop_loss']):,}원</b>
-                            </div>
-                        """, unsafe_allow_html=True)
-                except:
-                    st.error("계산 오류")
-                    
-            # 2번 카드 (단기)
-            with sc_cols[1]:
-                if 'st_avg_price' in locals() and st_sum_w > 0:
-                    try:
-                        st_total_qty = int(st_budget / st_avg_price) if st_avg_price > 0 else 0
-                        st_loss_pct = (st_loss / st_budget) * 100 if st_budget > 0 else 0
-                        
-                        with st.container(border=True):
-                            st.markdown(f"<h5 style='color: #E74C3C; margin-bottom: 10px;'>⚖️ 단기</h5>", unsafe_allow_html=True)
-                            st.markdown(f"""
-                                <div style='font-size: 0.8rem; line-height: 1.4;'>
-                                    <b>평단:</b> {int(st_avg_price):,}원 | <b>보유:</b> {st_total_qty:,}주<br>
-                                    <b style='color: #ef5350;'>손실: {st_loss_pct:.2f}%</b>
-                                </div>
-                                <hr style='margin: 8px 0;'>
-                            """, unsafe_allow_html=True)
-                            
-                            st_labels = ["1차", "2차", "3차", "4차"]
-                            for i, (p, w) in enumerate(zip(st_prices, st_weights)):
-                                amt = st_alloc[i]
-                                qty = int(amt / p) if p > 0 else 0
-                                amt_val = amt / 10000
-                                drop_pct = ((p / c_price) - 1) * 100
-                                color_pct = "#2ecc71" if drop_pct >= 0 else "#ef5350"
-                                st.markdown(f"""
-                                    <div style='font-size: 0.65rem; white-space: nowrap; margin-bottom: 3px; display: flex; justify-content: space-between;'>
-                                        <span><b>{st_labels[i]}:</b> {int(p):,}원 <span style='color: {color_pct}; font-size: 0.6rem;'>({drop_pct:+.1f}%)</span></span>
-                                        <span style='color: #8a8d9a;'>{qty}주 ({amt_val:.1f}만)</span>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                                
-                            st.markdown(f"""
-                                <div style='font-size: 0.78rem; color: #ef5350; display: flex; justify-content: space-between;'>
-                                    <b>손절선:</b>
-                                    <b>{int(st_hard_sl):,}원</b>
-                                </div>
-                            """, unsafe_allow_html=True)
-                    except:
-                        st.error("계산 오류")
-                else:
-                    with st.container(border=True):
-                        st.markdown(f"<h5 style='color: #E74C3C; margin-bottom: 10px;'>⚖️ 단기 전략</h5>", unsafe_allow_html=True)
-                        st.markdown("<div style='font-size: 0.8rem; color:#8a8d9a;'>단기 전략 미설정</div>", unsafe_allow_html=True)
-                        
-            # 3번 카드
-            with sc_cols[2]:
-                with st.container(border=True):
-                    st.markdown(f"<h5 style='color: #7f8c8d; margin-bottom: 10px;'>🛡️ 장기 </h5>", unsafe_allow_html=True)
-                    st.markdown("<div style='height: 100px; display: flex; align-items: center; justify-content: center; color: #7f8c8d;'>-</div>", unsafe_allow_html=True)
-                    
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            with st.expander("🤖 자동 주문 조건 설정 (가상 감시)", expanded=True):
-                order_cols = st.columns(2)
-                
-                # 🟢 [좌측] 매수 조건
-                with order_cols[0]:
-                    st.markdown("<h5 style='color: #2ecc71; margin-bottom: 15px;'>🟢 매수 (Buy) 설정</h5>", unsafe_allow_html=True)
-                    
-                    buy_strat = st.radio("🟢 매수 전략 선택", ["미사용", "일반 지정가 매수", "트레일링 매수", "조건부 분할매수"], horizontal=True, key="buy_strat")
-                    st.divider()
-                    
-                    if buy_strat == "일반 지정가 매수":
-                        c1, c2 = st.columns([5, 5])
-                        with c1:
-                            b_p1 = st.number_input("지정가격(원)", value=int(c_price), step=50, key="b_p1")
-                        with c2:
-                            b_q1 = st.number_input("수량(주)", value=1, step=1, key="b_q1")
-                        st.markdown(f"ℹ️ **지정가:** `{b_p1:,}`원에 `{b_q1:,}`주 매수 주문을 감시합니다.")
-                        
-                    elif buy_strat == "트레일링 매수":
-                        c1, c2, c3 = st.columns([4, 3, 3])
-                        with c1:
-                            b_base2 = st.number_input("기준가격(원)", value=int(c_price), step=50, key="b_base2")
-                        with c2:
-                            b_drop2 = st.number_input("하락폭(%)", value=0.5, step=0.1, key="b_drop2")
-                        with c3:
-                            b_reb2 = st.number_input("반등폭(%)", value=0.1, step=0.05, key="b_reb2")
-                            
-                        c4, _ = st.columns([4, 6])
-                        with c4:
-                            b_q2 = st.number_input("매수수량(주)", value=1, step=1, key="b_q2")
-                            
-                        st.markdown(f"ℹ️ **조건:** `{b_base2:,}`원 도달 시, 최저점 대비 `{b_drop2}%` 하락한 뒤 `{b_reb2}%` 반등하면 `{b_q2:,}`주 매수")
-                        
-                    elif buy_strat == "조건부 분할매수":
-                        st.markdown("ℹ️ 상단 분석 전략(중기/단기) 기반으로 1~4차 조건 도달 시 자동 분할 매수를 대기합니다.")
-                        
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if buy_strat != "미사용":
-                        if st.button("🟢 매수 조건 감시 시작", use_container_width=True, key="btn_buy_start"):
-                            new_order = {
-                                "code": symbol,
-                                "name": name,
-                                "type": "🟢 매수",
-                                "strat": buy_strat,
-                                "time": datetime.now().strftime("%H:%M:%S"),
-                                "status": "🟡 감시 중",
-                                "target_price": 0
-                            }
-                            if buy_strat == "일반 지정가 매수":
-                                new_order["desc"] = f"지정가 {b_p1:,}원"
-                                new_order["qty"] = f"{b_q1:,}주"
-                                new_order["target_price"] = b_p1
-                            elif buy_strat == "트레일링 매수":
-                                new_order["desc"] = f"{b_base2:,}원 도달 후 {b_drop2}%↓ & {b_reb2}%↑"
-                                new_order["qty"] = f"{b_q2:,}주"
-                                new_order["target_price"] = b_base2
-                            elif buy_strat == "조건부 분할매수":
-                                new_order["desc"] = "전략별 1~4차 분할 매집"
-                                new_order["qty"] = "전략 비중 기준"
-                                
-                            st.session_state.watch_orders.append(new_order)
-                            st.success(f"[{name}] {buy_strat} 감시가 등록되었습니다.")
-
-                        
-                # 🔴 [우측] 매도 조건
-                with order_cols[1]:
-                    st.markdown("<h5 style='color: #ef5350; margin-bottom: 15px;'>🔴 매도 (Sell) 설정</h5>", unsafe_allow_html=True)
-                    
-                    sell_strat = st.radio("🔴 매도 전략 선택", ["미사용", "목표가 익절", "손절매", "트레일링 스탑"], horizontal=True, key="sell_strat")
-                    st.divider()
-                    
-                    if sell_strat == "목표가 익절":
-                        c1, c2 = st.columns([5, 5])
-                        with c1:
-                            s_p1 = st.number_input("목표가격(원)", value=int(c_price * 1.05), step=50, key="s_p1")
-                        with c2:
-                            s_q1 = st.number_input("매도수량(주)", value=1, step=1, key="s_q1")
-                        st.markdown(f"ℹ️ **조건:** 주가가 `{s_p1:,}`원 도달 시 `{s_q1:,}`주 전량 매도")
-                        
-                    elif sell_strat == "손절매":
-                        c1, c2 = st.columns([5, 5])
-                        with c1:
-                            s_p2 = st.number_input("손절가격(원)", value=int(c_price * 0.95), step=50, key="s_p2")
-                        with c2:
-                            s_q2 = st.number_input("매도수량(주)", value=1, step=1, key="s_q2")
-                        st.markdown(f"ℹ️ **조건:** 주가가 `{s_p2:,}`원 이하로 추락 시 `{s_q2:,}`주 전량 손절")
-                        
-                    elif sell_strat == "트레일링 스탑":
-                        c1, c2, c3 = st.columns([4, 3, 3])
-                        with c1:
-                            s_base3 = st.number_input("익절기준가(원)", value=int(c_price * 1.03), step=50, key="s_base3")
-                        with c2:
-                            s_drop3 = st.number_input("하락폭(%)", value=1.0, step=0.1, key="s_drop3")
-                        with c3:
-                            s_q3 = st.number_input("매도수량(주)", value=1, step=1, key="s_q3")
-                        st.markdown(f"ℹ️ **조건:** `{s_base3:,}`원 도달 이후 형성된 최고점 대비 `{s_drop3}%` 하락 시 `{s_q3:,}`주 전량 매도")
-                        
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if sell_strat != "미사용":
-                        if st.button("🔴 매도 조건 감시 시작", use_container_width=True, key="btn_sell_start"):
-                            new_order = {
-                                "code": symbol,
-                                "name": name,
-                                "type": "🔴 매도",
-                                "strat": sell_strat,
-                                "time": datetime.now().strftime("%H:%M:%S"),
-                                "status": "🟡 감시 중",
-                                "target_price": 0
-                            }
-                            if sell_strat == "목표가 익절":
-                                new_order["desc"] = f"익절가 {s_p1:,}원"
-                                new_order["qty"] = f"{s_q1:,}주"
-                                new_order["target_price"] = s_p1
-                            elif sell_strat == "손절매":
-                                new_order["desc"] = f"손절가 {s_p2:,}원"
-                                new_order["qty"] = f"{s_q2:,}주"
-                                new_order["target_price"] = s_p2
-                            elif sell_strat == "트레일링 스탑":
-                                new_order["desc"] = f"{s_base3:,}원 달성 후 최고점 대비 {s_drop3}%↓"
-                                new_order["qty"] = f"{s_q3:,}주"
-                                new_order["target_price"] = s_base3
-                                
-                            st.session_state.watch_orders.append(new_order)
-                            st.success(f"[{name}] {sell_strat} 감시가 등록되었습니다.")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("<h4 style='color: #f39c12; margin-bottom: 15px;'>📋 실시간 감시 주문 현황</h4>", unsafe_allow_html=True)
-            
-            if not st.session_state.watch_orders:
-                st.info("현재 등록된 감시 주문이 없습니다. 상단 패널에서 전략을 설정하고 [감시 시작]을 눌러보세요.")
-            else:
-                # 종목별 그룹핑
-                grouped_orders = {}
-                for order in st.session_state.watch_orders:
-                    k = f"{order['name']} ({order['code']})"
-                    if k not in grouped_orders:
-                        grouped_orders[k] = []
-                    grouped_orders[k].append(order)
-                    
-                # 종목별 출력
-                for stock_key, orders in grouped_orders.items():
-                    with st.expander(f"📦 {stock_key} - 감시 주문 {len(orders)}건", expanded=True):
-                        df_data = []
-                        for ord_item in orders:
-                            status_text = ord_item['status']
-                            if "target_price" in ord_item and ord_item['target_price'] > 0:
-                                item_c_price = cached_current_price(ord_item['code'])
-                                if not item_c_price:
-                                    item_c_price = c_price # fallback
-                                    
-                                t_p = ord_item['target_price']
-                                diff_pct = ((item_c_price / t_p) - 1) * 100
-                                
-                                if ord_item['type'] == "🟢 매수":
-                                    if diff_pct <= 0:
-                                        status_text = "🟢 타점 도달!"
-                                    else:
-                                        status_text = f"🟡 감시 중 ({diff_pct:+.1f}%)"
-                                else:
-                                    if diff_pct >= 0:
-                                        status_text = "🟢 타점 도달!"
-                                    else:
-                                        status_text = f"🟡 감시 중 ({diff_pct:+.1f}%)"
-                                        
-                            df_data.append({
-                                "시간": ord_item['time'],
-                                "구분": ord_item['type'],
-                                "전략": ord_item['strat'],
-                                "수량": ord_item['qty'],
-                                "상세 조건": ord_item['desc'],
-                                "상태": status_text
-                            })
-                        st.dataframe(pd.DataFrame(df_data), use_container_width=True, hide_index=True)
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("<h4 style='color: #3498db; margin-bottom: 15px;'>🛒 증권사 접수 완료 내역 (미체결)</h4>", unsafe_allow_html=True)
-            
-            if not st.session_state.registered_orders:
-                st.info("증권사 서버에 접수된 미체결 주문이 없습니다.")
-            else:
-                grouped_registered = {}
-                for order in st.session_state.registered_orders:
-                    k = f"{order['name']} ({order['code']})"
-                    if k not in grouped_registered:
-                        grouped_registered[k] = []
-                    grouped_registered[k].append(order)
-                    
-                for stock_key, orders in grouped_registered.items():
-                    with st.expander(f"📥 {stock_key} - 접수 대기 {len(orders)}건", expanded=True):
-                        df_data = []
-                        for ord_item in orders:
-                            df_data.append({
-                                "접수시간": ord_item['time'],
-                                "구분": ord_item['type'],
-                                "전략": ord_item['strat'],
-                                "수량": ord_item['qty'],
-                                "주문조건": ord_item['desc'],
-                                "상태": ord_item['status']
-                            })
-                        st.dataframe(pd.DataFrame(df_data), use_container_width=True, hide_index=True)
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True)
-            from kis_client import KISClient
-            import os
-            
-            acc_options = []
-            acc_map = {}
-            for i in range(1, 5):
-                k_no = os.getenv(f"KIS_ACC{i}_NO")
-                k_name = os.getenv(f"KIS_ACC{i}_NAME", f"계좌 {i}")
-                if k_no:
-                    label = f"{k_name} ({k_no})"
-                    acc_options.append(label)
-                    acc_map[label] = i
-                    
-            if acc_options:
-                # 기본값으로 4번 계좌(주식일반)를 찾아서 인덱스 설정
-                default_idx = 0
-                for idx, opt in enumerate(acc_options):
-                    if "46903020-01" in opt:
-                        default_idx = idx
-                        break
-                selected_acc = st.selectbox("💳 조회 계좌 선택", options=acc_options, index=default_idx)
-                acc_idx = acc_map[selected_acc]
-            else:
-                acc_idx = 4
-                
-            kis = KISClient(acc_idx=acc_idx)
-            kis_data = kis.fetch_balance()
-            
-            if kis_data and kis_data.get("rt_cd") == "0":
-                out1 = kis_data.get("output1", [])
-                out2 = kis_data.get("output2", [{}])[0] if kis_data.get("output2") else {}
-                
-                # 계좌 요약
-                yesu = int(out2.get("dnca_tot_amt", 0))
-                tot_ev = int(out2.get("tot_evlu_amt", 0))
-                tot_profit = int(out2.get("evlu_pfls_smtot_amt", 0))
-                tot_pct = float(out2.get("evlu_erng_rt", 0))
-                
-                # 보유 주식
-                holdings = []
-                for item in out1:
-                    if int(item.get("hldg_qty", 0)) > 0:
-                        holdings.append({
-                            "name": item.get("prdt_name", "미상"),
-                            "code": item.get("pdno", "000000"),
-                            "qty": int(item.get("hldg_qty", 0)),
-                            "avg": int(float(item.get("pchs_avg_pric", 0))),
-                            "curr": int(item.get("prpr") or item.get("now_pric") or 0),
-                            "profit": int(item.get("evlu_pfls_amt", 0)),
-                            "pct": float(item.get("evlu_pfls_rt", 0))
-                        })
-
-                with st.expander(f"💼 계좌 잔고 및 보유 종목", expanded=True):
-                    plus_ch = "+" if tot_profit >= 0 else ""
-                    st.markdown(f"<div style='font-size: 0.9rem; color: #d1d4dc; padding: 5px 0;'>💰 <b>예수금(D+2):</b> {yesu:,}원 &nbsp;&nbsp;|&nbsp;&nbsp; 📊 <b>총 평가:</b> {tot_ev:,}원 &nbsp;&nbsp;|&nbsp;&nbsp; 📈 <b>수익:</b> <span style='color: {'#ef5350' if tot_profit >= 0 else '#03A9F4'}; font-weight: bold;'>{plus_ch}{tot_profit:,}원 ({plus_ch}{tot_pct:.2f}%)</span></div>", unsafe_allow_html=True)
-                    st.divider()
-                    
-                    if not holdings:
-                        st.markdown("<div style='font-size:0.8rem; color:#8a8d9a; text-align:center; padding:20px;'>보유하신 국내 주식이 없습니다.</div>", unsafe_allow_html=True)
-                    else:
-                        th_style = "background-color: #f1f3f5; color: #000000; padding: 8px; font-size: 0.75rem; text-align: center; font-weight: bold;"
-                        td_style = "padding: 8px; font-size: 0.75rem; text-align: center; border-bottom: 1px solid #e9ecef; color: #000000;"
-                        
-                        table_html = f"""<table style='width: 100%; border-collapse: collapse; margin-top: 5px;'><thead><tr><th style='{th_style}'>종목명</th><th style='{th_style}'>수량</th><th style='{th_style}'>매입평단</th><th style='{th_style}'>현재가</th><th style='{th_style}'>평가손익</th><th style='{th_style}'>수익률</th></tr></thead><tbody>"""
-                        
-                        for item in holdings:
-                            clr = "#ef5350" if item['pct'] >= 0 else "#03A9F4"
-                            plus_sign = "+" if item['pct'] >= 0 else ""
-                            table_html += f"<tr><td style='{td_style}'><b>{item['name']}</b><br><span style='color:#8a8d9a; font-size:0.6rem;'>{item['code']}</span></td><td style='{td_style}'>{item['qty']:,} 주</td><td style='{td_style}'>{item['avg']:,} 원</td><td style='{td_style}'>{item['curr']:,} 원</td><td style='{td_style} color:{clr};'>{plus_sign}{item['profit']:,} 원</td><td style='{td_style} color:{clr}; font-weight: bold;'>{plus_sign}{item['pct']:.2f}%</td></tr>"
-                            
-                        table_html += "</tbody></table>"
-                        st.markdown(table_html, unsafe_allow_html=True)
-            else:
-                with st.expander(f"💼 한국투자증권 계좌 잔고 및 보유 종목 ({kis.acc_no})", expanded=True):
-                    st.error("❌ 한국투자증권 API 연동 실패")
-                    if kis_data and kis_data.get("msg1"):
-                        st.warning(f"증권사 메시지: {kis_data.get('msg1').strip()}")
         except Exception as e:
             st.error(f"계산 중 오류 발생: {e}")
     else:
@@ -829,4 +163,3 @@ with left_col:
 
 st.divider()
 st.caption("본 프로그램은 네이버 금융 데이터를 활용하며, 투자 판단의 책임은 사용자 본인에게 있습니다. 실행: streamlit run app.py")
-
