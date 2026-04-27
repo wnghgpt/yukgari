@@ -53,9 +53,32 @@ class StockDataLoader:
             return None
 
     @staticmethod
+    def search_stock_naver(query: str):
+        import urllib.parse
+        if not query:
+            return []
+        try:
+            enc_query = urllib.parse.quote(query)
+            url = f"https://ac.finance.naver.com/ac?q={enc_query}&q_enc=utf-8&st=111&r_format=json&r_enc=utf-8&r_unicode=0&t_koreng=1&type=pc"
+            resp = requests.get(url, timeout=3)
+            if resp.status_code == 200:
+                data = resp.json()
+                items = data.get('items', [])
+                results = []
+                if items and len(items) > 0 and items[0]:
+                    for item in items[0]:
+                        name = item[0]
+                        code = item[1]
+                        results.append({"name": name, "symbol": code})
+                return results
+        except:
+            pass
+        return []
+
+    @staticmethod
     def get_stock_info(symbol_or_name: str) -> Dict[str, str]:
         """
-        FinanceDataReader(KRX)를 활용하여 종목명과 코드를 매칭합니다.
+        FinanceDataReader(KRX) 및 네이버 자동완성을 활용하여 종목명과 코드를 매칭합니다.
         """
         symbol_or_name = symbol_or_name.strip()
         
@@ -71,7 +94,13 @@ class StockDataLoader:
             except:
                 return {"name": symbol_or_name, "symbol": symbol_or_name}
         
-        # 2. 이름인 경우 코드 찾기 (FinanceDataReader 활용)
+        # 2. 이름인 경우 코드 찾기
+        # 2-1. 네이버 자동완성 API 우선 적용
+        naver_matches = StockDataLoader.search_stock_naver(symbol_or_name)
+        if naver_matches:
+            return naver_matches[0]
+
+        # 2-2. FinanceDataReader 백업 활용
         try:
             df = StockDataLoader.get_stock_list()
             if df is not None and not df.empty:
