@@ -22,9 +22,9 @@ class StrategyCalculator:
         dist = channel_top - channel_bot
         
         # 기하학적 4단 진입 타점 계산 (승률 극대화 커스텀 셋업)
-        p1 = channel_top - (dist * 0.25)      # 1/4 지점 (얕은 눌림목 정찰)
-        p2 = (channel_top - (dist * 0.5)) * 1.01 # 1/2 지점 + 1% (강력 지지선 새치기)
-        p3 = channel_top - (dist * 0.875)     # 7/8 지점 (채널 바닥 직전 싹슬이)
+        p1 = channel_top - (dist * 0.30)      # 1차: 30% 지점
+        p2 = channel_top - (dist * 0.60)      # 2차: 60% 지점
+        p3 = channel_top - (dist * 0.90)      # 3차: 90% 지점
         p4 = hard_stop_loss * 1.01            # 찐손절 방어선 (투매 줍기 비상금)
         prices = [p1, p2, p3, p4]
         

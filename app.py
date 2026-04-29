@@ -12,7 +12,7 @@ from components.sidebar import render_sidebar
 from components.settings_panel import render_settings_panel
 from components.chart import render_chart
 from components.scenario_cards import render_scenario_cards
-from components.order_panel import render_order_panel
+from components.order_panel import render_order_input, render_order_status
 from components.account_panel import render_account_panel
 
 load_dotenv()
@@ -27,6 +27,42 @@ st.set_page_config(
 
 # 커스텀 스타일 적용
 apply_custom_styles()
+
+import threading
+import asyncio
+from kis_websocket import KISWebSocket
+
+GLOBAL_PRICES = {}
+GLOBAL_WS_STATUS = {"status": "연결 대기 중 🟡", "last_time": "없음"}
+WS_CLIENT = None
+WS_LOOP = None
+
+@st.cache_resource
+def init_websocket():
+    global WS_CLIENT, WS_LOOP
+    WS_CLIENT = KISWebSocket(acc_idx=4)
+    WS_LOOP = asyncio.new_event_loop()
+    
+    async def ws_callback(code, price):
+        GLOBAL_PRICES[code] = price
+        GLOBAL_WS_STATUS["last_time"] = datetime.now().strftime("%H:%M:%S")
+        
+    def run_ws():
+        asyncio.set_event_loop(WS_LOOP)
+        async def main():
+            if await WS_CLIENT.connect():
+                GLOBAL_WS_STATUS["status"] = f"연결 완료 🟢 ({datetime.now().strftime('%H:%M:%S')})"
+                await WS_CLIENT.subscribe("005930") # 기본 삼성전자
+                await WS_CLIENT.receive_loop(ws_callback)
+            else:
+                GLOBAL_WS_STATUS["status"] = "연결 실패 🔴"
+        WS_LOOP.run_until_complete(main())
+        
+    t = threading.Thread(target=run_ws, daemon=True)
+    t.start()
+    return WS_CLIENT
+
+ws_inst = init_websocket()
 
 if "watch_orders" not in st.session_state:
     st.session_state.watch_orders = []
@@ -49,11 +85,11 @@ def cached_current_price(symbol):
 # --- 1. 사이드바 (앱 정보 및 실시간 수치 요약) ---
 placeholder_summary = render_sidebar()
 
-# --- 2. 메인 레이아웃 (차트 vs 설정패널) ---
-left_col, right_col = st.columns([7, 3])
+# --- 2. 상단 레이아웃 (차트 vs 설정패널) ---
+top_left, top_right = st.columns([7, 3])
 
 # 검색창을 차트 바로 위 콤팩트 레이아웃으로 배치
-with left_col:
+with top_left:
     col_ctl0, col_ctl1, col_ctl2, col_ctl3 = st.columns([2, 2, 3, 3])
     with col_ctl0:
         search_input = st.text_input("종목 검색", value="삼성전자", placeholder="이름 또는 코드", label_visibility="collapsed")
@@ -63,8 +99,11 @@ stock_info = cached_stock_info_v2(search_input.strip())
 symbol = stock_info['symbol']
 name = stock_info['name']
 
-# 현재가 조회
-c_price_raw = cached_current_price(symbol)
+# 현재가 조회 (웹소켓 우선, 없으면 캐시)
+c_price_raw = GLOBAL_PRICES.get(symbol)
+if not c_price_raw:
+    c_price_raw = cached_current_price(symbol)
+    
 c_price = c_price_raw if c_price_raw else 70000
 c_price_val = f"{int(c_price):,} 원" if c_price_raw else "가격 정보 없음"
 
@@ -76,8 +115,15 @@ if "last_symbol" not in st.session_state or st.session_state.last_symbol != symb
     st.session_state.ct_input = int(c_price)
     st.session_state.cb_input = int(c_price * 0.90)
     st.session_state.resist_input = int(c_price)
+    
+    # 웹소켓 동적 구독 요청
+    if WS_CLIENT and WS_LOOP:
+        try:
+            asyncio.run_coroutine_threadsafe(WS_CLIENT.subscribe(symbol), WS_LOOP)
+        except Exception as e:
+            pass
 
-with left_col:
+with top_left:
     with col_ctl1:
         st.markdown(f"""
             <div style='display: flex; flex-direction: column; padding-top: 2px; gap: 0;'>
@@ -88,9 +134,25 @@ with left_col:
                 <div style='font-size: 0.9rem; font-weight: bold; color: #2ecc71;'>{c_price_val}</div>
             </div>
         """, unsafe_allow_html=True)
+        
+    with col_ctl2:
+        ws_status_str = "연결 대기 중 🟡"
+        if WS_CLIENT and WS_CLIENT.is_running:
+            ws_status_str = "연결 완료 🟢"
+            if GLOBAL_WS_STATUS.get("last_time", "없음") != "없음":
+                ws_status_str += f" ({GLOBAL_WS_STATUS['last_time']})"
+        elif WS_CLIENT and not WS_CLIENT.is_running:
+            ws_status_str = "연결 실패 🔴"
+            
+        st.markdown(f"""
+            <div style='font-size: 0.75rem; color: #d1d4dc; padding-top: 5px;'>
+                🔌 <b>웹소켓:</b> {ws_status_str}<br>
+                ⏱️ <b>수신:</b> {GLOBAL_WS_STATUS['last_time']}
+            </div>
+        """, unsafe_allow_html=True)
 
-# --- 3. 설정 패널 ---
-with right_col:
+# --- 3. 설정 패널 (상단 우측) ---
+with top_right:
     params = render_settings_panel(c_price)
 
 mid_term = params["mid_term"]
@@ -113,8 +175,12 @@ if st_sum_w > 0:
     st_hard_sl = resist_price * 0.90
     st_loss = st_budget * (1 - (st_hard_sl / st_avg_price)) if st_avg_price > 0 else 0
 
-# --- 4. 차트 분석 영역 ---
-with left_col:
+# --- 4. 차트 분석 영역 (상단 좌측) ---
+df_ohlcv = None
+calc_res = None
+rr_targets = None
+
+with top_left:
     with col_ctl2:
         candle_count = st.slider("캔들 수", 100, 2000, 500, label_visibility="collapsed")
     with col_ctl3:
@@ -148,18 +214,25 @@ with left_col:
             render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price)
             
             # 시나리오 카드 렌더링
-            render_scenario_cards(mid_term, short_term, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, short_term["weights"], st_alloc, short_term["budget"], st_loss)
-            
-            # 주문 패널 렌더링
-            render_order_panel(symbol, name, c_price)
-            
-            # 계좌 패널 렌더링
-            render_account_panel(c_price)
+            render_scenario_cards(mid_term, short_term, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, short_term["weights"], st_alloc, short_term["budget"], st_loss, symbol=symbol, name=name)
             
         except Exception as e:
             st.error(f"계산 중 오류 발생: {e}")
     else:
         st.warning("데이터를 불러올 수 없습니다. 종목 코드를 확인해 주세요.")
+
+st.divider()
+
+# --- 5. 하단 레이아웃 (주문/계좌 vs 주문창) ---
+bottom_left, bottom_right = st.columns([7, 3])
+
+if df_ohlcv is not None and not df_ohlcv.empty and calc_res is not None:
+    with bottom_right:
+        render_order_input(symbol, name, c_price, mid_term=mid_term)
+        
+    with bottom_left:
+        render_order_status(symbol, name, c_price)
+        render_account_panel(c_price)
 
 st.divider()
 st.caption("본 프로그램은 네이버 금융 데이터를 활용하며, 투자 판단의 책임은 사용자 본인에게 있습니다. 실행: streamlit run app.py")

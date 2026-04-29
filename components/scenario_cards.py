@@ -1,7 +1,7 @@
 import streamlit as st
 from calculator import StrategyCalculator
 
-def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, st_weights, st_alloc, st_budget, st_loss):
+def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, st_weights, st_alloc, st_budget, st_loss, symbol=None, name=None):
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h4 style='margin-bottom: 15px;'>📍 분할 매수 시나리오별 비교</h4>", unsafe_allow_html=True)
     
@@ -42,9 +42,40 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                 st.markdown(f"""
                     <div style='font-size: 0.78rem; color: #ef5350; display: flex; justify-content: space-between;'>
                         <b>손절선:</b>
-                        <b>{int(sc_res['hard_stop_loss']):,}원</b>
-                    </div>
+                    <b>{int(sc_res['hard_stop_loss']):,}원</b>
+                </div>
+                
+                <br>
+                <div style='text-align: center;'>
+                    <p style='font-size: 0.75rem; color: #d1d4dc; margin-bottom: 5px;'>💡 타점 이하 도달 후 1.0%↑ 반등 시 매수</p>
+                </div>
                 """, unsafe_allow_html=True)
+                
+                if st.button("⚡ 중기 전략 일괄 감시 시작", use_container_width=True, key="btn_batch_mid_card"):
+                    from datetime import datetime
+                    if symbol and name:
+                        zones = sc_res.get("zones", [])
+                        for i, zone in enumerate(zones):
+                            target_p = int(zone["price"])
+                            qty = int(zone["qty"])
+                            if qty <= 0:
+                                qty = 1
+                                
+                            new_order = {
+                                "code": symbol,
+                                "name": name,
+                                "type": f"🟢 매수 ({i+1}차)",
+                                "strat": "중기 분할매수 (트레일링)",
+                                "time": datetime.now().strftime("%H:%M:%S"),
+                                "status": "🟡 감시 중",
+                                "target_price": target_p,
+                                "desc": f"{target_p:,}원 이하 도달 후 1.0%↑ 반등 시 매수",
+                                "qty": f"{qty:,}주"
+                            }
+                            st.session_state.watch_orders.append(new_order)
+                        st.success(f"[{name}] 1~4차 일괄 등록 완료!")
+                    else:
+                        st.warning("종목 정보가 누락되었습니다.")
         except:
             st.error("계산 오류")
             

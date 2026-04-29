@@ -24,8 +24,10 @@ def render_account_panel(c_price):
                 break
         selected_acc = st.selectbox("💳 조회 계좌 선택", options=acc_options, index=default_idx)
         acc_idx = acc_map[selected_acc]
+        st.session_state.selected_acc_idx = acc_idx
     else:
         acc_idx = 4
+        st.session_state.selected_acc_idx = acc_idx
         
     kis = KISClient(acc_idx=acc_idx)
     kis_data = kis.fetch_balance()
