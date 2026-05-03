@@ -104,23 +104,44 @@ class StockDataLoader:
         import urllib.parse
         if not query:
             return []
+            
+        results = []
+        query_upper = query.strip().upper()
+
+        # 0. 입력어가 영어 티커 형식인 경우 강제로 결과에 추가 (해외 주식 대응)
+        import re
+        if re.match(r'^[A-Za-z.\-]+$', query_upper) and len(query_upper) <= 10:
+            results.append({"name": query_upper, "symbol": query_upper})
+
+        # 1. 네이버 실시간 검색 시도
         try:
             enc_query = urllib.parse.quote(query)
-            url = f"https://ac.finance.naver.com/ac?q={enc_query}&q_enc=utf-8&st=111&r_format=json&r_enc=utf-8&r_unicode=0&t_koreng=1&type=pc"
-            resp = requests.get(url, timeout=3)
+            url = f"https://ac.finance.naver.com/ac?q={enc_query}&q_enc=utf-8&st=1&r_format=json&r_enc=utf-8&r_unicode=0&t_koreng=1&type=pc"
+            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            resp = requests.get(url, headers=headers, timeout=2)
+            
             if resp.status_code == 200:
                 data = resp.json()
-                items = data.get('items', [])
-                results = []
-                if items and len(items) > 0 and items[0]:
-                    for item in items[0]:
-                        name = item[0]
-                        code = item[1]
+                for key in ['items', 'world']:
+                    container = data.get(key, [])
+                    if container and isinstance(container, list):
+                        for sub_list in container:
+                            if isinstance(sub_list, list):
+                                for item in sub_list:
+                                    if isinstance(item, list) and len(item) >= 2:
+                                        results.append({"name": item[0], "symbol": item[1]})
+        except Exception as e:
+            print(f"Network Search Error (Fallback to local): {e}")
+            
+        # 2. 결과가 없거나 네트워크 에러 시 로컬 파일(국내 주식) 검색 (백업)
+        if not results:
+            local_list = StockDataLoader.get_stock_list()
+            if local_list:
+                for name, code in local_list.items():
+                    if query_upper in name.upper() or query_upper in code:
                         results.append({"name": name, "symbol": code})
-                return results
-        except:
-            pass
-        return []
+        
+        return results[:10] # 최대 10개 반환
 
     @staticmethod
     def get_stock_info(symbol_or_name: str) -> Dict[str, str]:

@@ -111,7 +111,7 @@ def cached_current_price(symbol):
     return StockDataLoader.get_current_price(symbol)
 
 # --- 1. 사이드바 (앱 정보 및 실시간 수치 요약) ---
-placeholder_summary = render_sidebar()
+status_placeholder = render_sidebar()
 
 # --- 2. 상단 레이아웃 (차트 vs 설정패널) ---
 top_left, top_right = st.columns([7, 3])
@@ -120,7 +120,19 @@ top_left, top_right = st.columns([7, 3])
 with top_left:
     col_ctl0, col_ctl1, col_ctl2, col_ctl3 = st.columns([2, 2, 3, 3])
     with col_ctl0:
-        search_input = st.text_input("종목 검색", value="삼성전자", placeholder="이름 또는 코드", label_visibility="collapsed")
+        # 관심종목 클릭 시 값이 바뀌도록 key 설정 및 세션 상태 관리
+        if "search_input_val" not in st.session_state:
+            st.session_state.search_input_val = "005930"
+            
+        search_input = st.text_input(
+            "종목 검색", 
+            value=st.session_state.search_input_val, 
+            placeholder="이름 또는 코드", 
+            label_visibility="collapsed",
+            key="search_input_widget"
+        )
+        # 위젯 입력값이 바뀌면 세션값도 동기화
+        st.session_state.search_input_val = search_input
 
 # 데이터 로딩 및 정보 추출
 stock_info = cached_stock_info_v2(search_input.strip())
@@ -143,6 +155,14 @@ if is_overseas:
     c_price_val = f"{c_price:,.2f} {unit}" if c_price_raw else "가격 정보 없음"
 else:
     c_price_val = f"{int(c_price):,} {unit}" if c_price_raw else "가격 정보 없음"
+
+# --- 시스템 상태 실시간 업데이트 (사이드바) ---
+ws_st = GLOBAL_WS_STATUS["status"]
+ws_time = GLOBAL_WS_STATUS["last_time"]
+status_placeholder.markdown(f"""
+    - **연결**: {ws_st}
+    - **수신**: {ws_time}
+""")
 
 # --- 상태 유지 및 종목 변경 감지 로직 ---
 if "last_symbol" not in st.session_state or st.session_state.last_symbol != symbol:
@@ -182,12 +202,6 @@ with top_left:
         elif WS_CLIENT and not WS_CLIENT.is_running:
             ws_status_str = "연결 실패 🔴"
             
-        st.markdown(f"""
-            <div style='font-size: 0.75rem; color: #d1d4dc; padding-top: 5px;'>
-                🔌 <b>웹소켓:</b> {ws_status_str}<br>
-                ⏱️ <b>수신:</b> {GLOBAL_WS_STATUS['last_time']}
-            </div>
-        """, unsafe_allow_html=True)
 
 # --- 3. 설정 패널 (상단 우측) ---
 with top_right:
@@ -241,13 +255,6 @@ with top_left:
                 hard_stop_loss=calc_res['hard_stop_loss'],
                 rr_multipliers=mid_term["rr_targets"]
             )
-            
-            # 사이드바 요약 업데이트
-            fmt_avg = f"{calc_res['avg_price']:,.2f}" if is_overseas else f"{int(calc_res['avg_price']):,}"
-            placeholder_summary.markdown(f"""
-                - **평단**: {fmt_avg}{unit}
-                - **손실률**: {calc_res['loss_pct']:.2f}%
-            """)
             
             # 차트 렌더링
             render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price)

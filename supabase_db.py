@@ -34,7 +34,7 @@ class SupabaseDB:
             "stock_name": stock_name,
             "order_type": order_type,
             "strat_name": strat_name,
-            "target_price": int(target_price),
+            "target_price": float(target_price),
             "qty": str(qty),
             "status": "🟡 감시 중"
         }
@@ -95,8 +95,8 @@ class SupabaseDB:
         
         payload = {
             "stock_name": stock_name,
-            "buy_price": int(buy_price),
-            "sell_price": int(sell_price),
+            "buy_price": float(buy_price),
+            "sell_price": float(sell_price),
             "profit_pct": float(profit_pct)
         }
         try:
@@ -119,3 +119,48 @@ class SupabaseDB:
         except Exception as e:
             print(f"DB Fetch Trade History Error: {e}")
             return []
+
+    # --- [3] 관심 종목 (watchlist) CRUD ---
+
+    @staticmethod
+    def insert_watchlist(stock_code, stock_name, market_type):
+        """관심 종목 추가"""
+        if not SupabaseDB.is_connected():
+            return None
+        
+        payload = {
+            "stock_code": stock_code,
+            "stock_name": stock_name,
+            "market_type": market_type
+        }
+        try:
+            response = supabase.table("watchlist").insert(payload).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            # 중복 추가 시 에러 발생 가능하므로 예외 처리
+            print(f"DB Insert Watchlist Error: {e}")
+            return None
+
+    @staticmethod
+    def fetch_watchlist():
+        """관심 종목 전체 조회"""
+        if not SupabaseDB.is_connected():
+            return []
+        try:
+            response = supabase.table("watchlist").select("*").order("created_at", desc=False).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            print(f"DB Fetch Watchlist Error: {e}")
+            return []
+
+    @staticmethod
+    def delete_watchlist(stock_code):
+        """관심 종목 삭제"""
+        if not SupabaseDB.is_connected():
+            return False
+        try:
+            response = supabase.table("watchlist").delete().eq("stock_code", stock_code).execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"DB Delete Watchlist Error: {e}")
+            return False
