@@ -5,6 +5,15 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h4 style='margin-bottom: 15px;'>📍 분할 매수 시나리오별 비교</h4>", unsafe_allow_html=True)
     
+    unit = st.session_state.get("unit", "원")
+    is_overseas = st.session_state.get("is_overseas", False)
+    
+    # 가격 포맷팅 헬퍼
+    def fmt_p(val):
+        if is_overseas:
+            return f"{val:,.2f}"
+        return f"{int(val):,}"
+
     sc_cols = st.columns(3)
     
     # 1번 카드 (중기)
@@ -21,7 +30,7 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                 st.markdown(f"<h5 style='color: #3498DB; margin-bottom: 10px;'>📊 중기</h5>", unsafe_allow_html=True)
                 st.markdown(f"""
                     <div style='font-size: 0.8rem; line-height: 1.4;'>
-                        <b>평단:</b> {int(sc_res['avg_price']):,}원 | <b>보유:</b> {int(sc_res['total_qty']):,}주<br>
+                        <b>평단:</b> {fmt_p(sc_res['avg_price'])}{unit} | <b>보유:</b> {int(sc_res['total_qty']):,}주<br>
                         <b style='color: #ef5350;'>손실: {sc_res['loss_pct']:.2f}%</b>
                     </div>
                     <hr style='margin: 8px 0;'>
@@ -29,20 +38,21 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                 for i, zone in enumerate(sc_res['zones']):
                     lbl = f"{i+1}차" if i < 3 else "4차"
                     qty = int(zone['qty'])
-                    amt_val = zone['allocate_amt'] / 10000
+                    amt_val = zone['allocate_amt'] / 10000 if not is_overseas else zone['allocate_amt']
+                    amt_unit = "만" if not is_overseas else ""
                     drop_pct = ((zone['price'] / c_price) - 1) * 100
                     color_pct = "#2ecc71" if drop_pct >= 0 else "#ef5350"
                     st.markdown(f"""
                         <div style='font-size: 0.65rem; white-space: nowrap; margin-bottom: 3px; display: flex; justify-content: space-between;'>
-                            <span><b>{lbl}:</b> {int(zone['price']):,}원 <span style='color: {color_pct}; font-size: 0.6rem;'>({drop_pct:+.1f}%)</span></span>
-                            <span style='color: #8a8d9a;'>{qty}주 ({amt_val:.1f}만)</span>
+                            <span><b>{lbl}:</b> {fmt_p(zone['price'])}{unit} <span style='color: {color_pct}; font-size: 0.6rem;'>({drop_pct:+.1f}%)</span></span>
+                            <span style='color: #8a8d9a;'>{qty}주 ({amt_val:.1f}{amt_unit})</span>
                         </div>
                     """, unsafe_allow_html=True)
                     
                 st.markdown(f"""
                     <div style='font-size: 0.78rem; color: #ef5350; display: flex; justify-content: space-between;'>
                         <b>손절선:</b>
-                    <b>{int(sc_res['hard_stop_loss']):,}원</b>
+                    <b>{fmt_p(sc_res['hard_stop_loss'])}{unit}</b>
                 </div>
                 
                 <br>
@@ -56,7 +66,7 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                     if symbol and name:
                         zones = sc_res.get("zones", [])
                         for i, zone in enumerate(zones):
-                            target_p = int(zone["price"])
+                            target_p = float(zone["price"]) if is_overseas else int(zone["price"])
                             qty = int(zone["qty"])
                             if qty <= 0:
                                 qty = 1
@@ -69,15 +79,28 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                                 "time": datetime.now().strftime("%H:%M:%S"),
                                 "status": "🟡 감시 중",
                                 "target_price": target_p,
-                                "desc": f"{target_p:,}원 이하 도달 후 1.0%↑ 반등 시 매수",
+                                "desc": f"{fmt_p(target_p)}{unit} 이하 도달 후 1.0%↑ 반등 시 매수",
                                 "qty": f"{qty:,}주"
                             }
+                            
+                            from supabase_db import SupabaseDB
+                            db_res = SupabaseDB.insert_watch_order(
+                                stock_code=symbol,
+                                stock_name=name,
+                                order_type=f"🟢 매수 ({i+1}차)",
+                                strat_name="중기 분할매수 (트레일링)",
+                                target_price=target_p,
+                                qty=f"{qty:,}주"
+                            )
+                            if db_res:
+                                new_order["id"] = db_res.get("id")
+                                
                             st.session_state.watch_orders.append(new_order)
                         st.success(f"[{name}] 1~4차 일괄 등록 완료!")
                     else:
                         st.warning("종목 정보가 누락되었습니다.")
-        except:
-            st.error("계산 오류")
+        except Exception as e:
+            st.error(f"계산 오류 발생: {e}")
             
     # 2번 카드 (단기)
     with sc_cols[1]:
@@ -90,7 +113,7 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                     st.markdown(f"<h5 style='color: #E74C3C; margin-bottom: 10px;'>⚖️ 단기</h5>", unsafe_allow_html=True)
                     st.markdown(f"""
                         <div style='font-size: 0.8rem; line-height: 1.4;'>
-                            <b>평단:</b> {int(st_avg_price):,}원 | <b>보유:</b> {st_total_qty:,}주<br>
+                            <b>평단:</b> {fmt_p(st_avg_price)}{unit} | <b>보유:</b> {st_total_qty:,}주<br>
                             <b style='color: #ef5350;'>손실: {st_loss_pct:.2f}%</b>
                         </div>
                         <hr style='margin: 8px 0;'>
@@ -100,20 +123,21 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                     for i, (p, w) in enumerate(zip(st_prices, st_weights)):
                         amt = st_alloc[i]
                         qty = int(amt / p) if p > 0 else 0
-                        amt_val = amt / 10000
+                        amt_val = amt / 10000 if not is_overseas else amt
+                        amt_unit = "만" if not is_overseas else ""
                         drop_pct = ((p / c_price) - 1) * 100
                         color_pct = "#2ecc71" if drop_pct >= 0 else "#ef5350"
                         st.markdown(f"""
                             <div style='font-size: 0.65rem; white-space: nowrap; margin-bottom: 3px; display: flex; justify-content: space-between;'>
-                                <span><b>{st_labels[i]}:</b> {int(p):,}원 <span style='color: {color_pct}; font-size: 0.6rem;'>({drop_pct:+.1f}%)</span></span>
-                                <span style='color: #8a8d9a;'>{qty}주 ({amt_val:.1f}만)</span>
+                                <span><b>{st_labels[i]}:</b> {fmt_p(p)}{unit} <span style='color: {color_pct}; font-size: 0.6rem;'>({drop_pct:+.1f}%)</span></span>
+                                <span style='color: #8a8d9a;'>{qty}주 ({amt_val:.1f}{amt_unit})</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
                     st.markdown(f"""
                         <div style='font-size: 0.78rem; color: #ef5350; display: flex; justify-content: space-between;'>
                             <b>손절선:</b>
-                            <b>{int(st_hard_sl):,}원</b>
+                            <b>{fmt_p(st_hard_sl)}{unit}</b>
                         </div>
                     """, unsafe_allow_html=True)
             except:

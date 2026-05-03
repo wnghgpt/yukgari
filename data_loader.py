@@ -81,7 +81,20 @@ class StockDataLoader:
                     'Volume': 'sum'
                 }).dropna()
             
-            return df.reset_index()
+            # 인덱스를 컬럼으로 변환
+            df = df.reset_index()
+            
+            # 날짜 컬럼명 표준화 ('Date' 또는 'date' 또는 'index' -> 'Date')
+            if 'Date' not in df.columns:
+                if 'date' in df.columns:
+                    df.rename(columns={'date': 'Date'}, inplace=True)
+                elif 'index' in df.columns:
+                    df.rename(columns={'index': 'Date'}, inplace=True)
+                # 만약 여전히 없다면 첫 번째 컬럼을 날짜로 간주
+                else:
+                    df.rename(columns={df.columns[0]: 'Date'}, inplace=True)
+
+            return df
         except Exception as e:
             print(f"OHLCV Load Error: {e}")
             return None
@@ -116,7 +129,13 @@ class StockDataLoader:
         """
         symbol_or_name = symbol_or_name.strip()
         
-        # 1. 이미 6자리 숫자인 경우 (코드)
+        # 1. 영어 알파벳이 포함되어 있고 길이가 짧은 경우 (해외 티커 감지)
+        # 예: AAPL, TSLA, NVDA 등 (공백 없이 알파벳 위주)
+        import re
+        if re.match(r'^[A-Za-z.\-]+$', symbol_or_name) and len(symbol_or_name) < 10:
+            return {"name": symbol_or_name.upper(), "symbol": symbol_or_name.upper()}
+
+        # 2. 이미 6자리 숫자인 경우 (국내 코드)
         if symbol_or_name.isdigit() and len(symbol_or_name) == 6:
             try:
                 url = f"https://finance.naver.com/item/main.naver?code={symbol_or_name}"
@@ -128,8 +147,8 @@ class StockDataLoader:
             except:
                 return {"name": symbol_or_name, "symbol": symbol_or_name}
         
-        # 2. 이름인 경우 코드 찾기
-        # 2-1. 로컬 오프라인 JSON 캐시 1순위 검색
+        # 3. 이름인 경우 코드 찾기 (국내 주식용)
+        # 3-1. 로컬 오프라인 JSON 캐시 1순위 검색
         local_list = StockDataLoader.get_stock_list()
         if local_list:
             # 완전 일치 탐색
@@ -141,25 +160,36 @@ class StockDataLoader:
                 if symbol_or_name in k:
                     return {"name": k, "symbol": v}
 
-        # 2-2. 네이버 자동완성 API 백업
+        # 3-2. 네이버 자동완성 API 백업
         naver_matches = StockDataLoader.search_stock_naver(symbol_or_name)
         if naver_matches:
             return naver_matches[0]
 
-        return {"name": symbol_or_name, "symbol": "005930"} # 최후의 수단: 삼성전자 코드라도 반환하여 에러 방지
+        # 4. 아무것도 해당되지 않을 때 (기본값)
+        return {"name": symbol_or_name, "symbol": "005930"} 
 
     @staticmethod
     def get_current_price(symbol: str) -> Optional[float]:
         """
         네이버 금융 실시간 체결가 (지연 포함) 가져오기
+        (국내 주식은 숫자로 된 코드, 해외 주식은 영어 티커 사용)
         """
         try:
-            url = f"https://finance.naver.com/item/main.naver?code={symbol}"
-            resp = requests.get(url, timeout=5)
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            price_tag = soup.select_one(".no_today .blind")
-            if price_tag:
-                return float(price_tag.text.replace(",", ""))
+            # 1. 국내 주식인 경우 (숫자 6자리)
+            if symbol.isdigit() and len(symbol) == 6:
+                url = f"https://finance.naver.com/item/main.naver?code={symbol}"
+                resp = requests.get(url, timeout=5)
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                price_tag = soup.select_one(".no_today .blind")
+                if price_tag:
+                    return float(price_tag.text.replace(",", ""))
+            
+            # 2. 해외 주식인 경우 (영어 티커)
+            # 과거 데이터에서 마지막 종가를 현재가 대용으로 사용 (지연 시세)
+            else:
+                df = StockDataLoader.get_ohlcv(symbol, count=1)
+                if df is not None and not df.empty:
+                    return float(df.iloc[-1]['Close'])
         except:
             pass
         return None

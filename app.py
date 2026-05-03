@@ -65,7 +65,35 @@ def init_websocket():
 ws_inst = init_websocket()
 
 if "watch_orders" not in st.session_state:
-    st.session_state.watch_orders = []
+    from supabase_db import SupabaseDB
+    if SupabaseDB.is_connected():
+        try:
+            db_orders = SupabaseDB.fetch_watch_orders()
+            restored = []
+            for o in db_orders:
+                is_o = not o.get("stock_code", "").isdigit()
+                u = "$" if is_o else "원"
+                t_p = o.get("target_price", 0)
+                fmt_t_p = f"{t_p:,.2f}" if is_o else f"{int(t_p):,}"
+                
+                restored.append({
+                    "id": o.get("id"),
+                    "code": o.get("stock_code"),
+                    "name": o.get("stock_name"),
+                    "type": o.get("order_type"),
+                    "strat": o.get("strat_name"),
+                    "time": o.get("created_at")[11:19] if o.get("created_at") else "00:00:00",
+                    "status": o.get("status"),
+                    "target_price": t_p,
+                    "qty": o.get("qty"),
+                    "desc": f"{fmt_t_p}{u} 이하 도달 후 1.0%↑ 반등 시 매수"
+                })
+            st.session_state.watch_orders = restored
+        except Exception as e:
+            st.session_state.watch_orders = []
+    else:
+        st.session_state.watch_orders = []
+
 if "registered_orders" not in st.session_state:
     st.session_state.registered_orders = []
 
@@ -99,22 +127,32 @@ stock_info = cached_stock_info_v2(search_input.strip())
 symbol = stock_info['symbol']
 name = stock_info['name']
 
+# 해외 주식 여부 판별 (영문 티커인 경우)
+is_overseas = not symbol.isdigit()
+unit = "$" if is_overseas else "원"
+st.session_state.is_overseas = is_overseas
+st.session_state.unit = unit
+
 # 현재가 조회 (웹소켓 우선, 없으면 캐시)
 c_price_raw = GLOBAL_PRICES.get(symbol)
 if not c_price_raw:
     c_price_raw = cached_current_price(symbol)
     
-c_price = c_price_raw if c_price_raw else 70000
-c_price_val = f"{int(c_price):,} 원" if c_price_raw else "가격 정보 없음"
+c_price = float(c_price_raw) if c_price_raw else (150.0 if is_overseas else 70000.0)
+if is_overseas:
+    c_price_val = f"{c_price:,.2f} {unit}" if c_price_raw else "가격 정보 없음"
+else:
+    c_price_val = f"{int(c_price):,} {unit}" if c_price_raw else "가격 정보 없음"
 
 # --- 상태 유지 및 종목 변경 감지 로직 ---
 if "last_symbol" not in st.session_state or st.session_state.last_symbol != symbol:
     st.session_state.last_symbol = symbol
-    st.session_state.ch_top = int(c_price)
-    st.session_state.ch_bot = int(c_price * 0.90)
-    st.session_state.ct_input = int(c_price)
-    st.session_state.cb_input = int(c_price * 0.90)
-    st.session_state.resist_input = int(c_price)
+    # 해외 주식은 소수점 유지, 국내 주식은 정수 유지
+    st.session_state.ch_top = float(c_price) if is_overseas else int(c_price)
+    st.session_state.ch_bot = float(c_price * 0.90) if is_overseas else int(c_price * 0.90)
+    st.session_state.ct_input = float(c_price) if is_overseas else int(c_price)
+    st.session_state.cb_input = float(c_price * 0.90) if is_overseas else int(c_price * 0.90)
+    st.session_state.resist_input = float(c_price) if is_overseas else int(c_price)
     
     # 웹소켓 동적 구독 요청
     if WS_CLIENT and WS_LOOP:
@@ -205,8 +243,9 @@ with top_left:
             )
             
             # 사이드바 요약 업데이트
+            fmt_avg = f"{calc_res['avg_price']:,.2f}" if is_overseas else f"{int(calc_res['avg_price']):,}"
             placeholder_summary.markdown(f"""
-                - **평단**: {int(calc_res['avg_price']):,}원
+                - **평단**: {fmt_avg}{unit}
                 - **손실률**: {calc_res['loss_pct']:.2f}%
             """)
             

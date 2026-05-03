@@ -3,6 +3,14 @@ import streamlit as st
 def render_settings_panel(c_price):
     st.markdown("<div style='font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #3498DB;'>⚙️ 전략 시뮬레이션</div>", unsafe_allow_html=True)
     
+    is_overseas = st.session_state.get("is_overseas", False)
+    unit = st.session_state.get("unit", "원")
+    
+    # 기본값 및 스텝 설정
+    def_budget = 2000.0 if is_overseas else 3000000.0
+    budget_step = 100.0 if is_overseas else 100000.0
+    price_step = 0.1 if is_overseas else 100.0
+
     # --- 중기 전략 ---
     with st.expander("📊 중기: 채널 내 분할매수", expanded=True):
         col_title, col_chk = st.columns([7, 3])
@@ -30,22 +38,24 @@ def render_settings_panel(c_price):
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             if "ct_input" not in st.session_state:
-                st.session_state.ct_input = int(c_price)
-            channel_top = st.number_input("상단(저항)", step=100, key="ct_input")
+                st.session_state.ct_input = float(c_price) if is_overseas else int(c_price)
+            channel_top = st.number_input(f"상단(저항) {unit}", step=price_step, key="ct_input")
             st.session_state.ch_top = channel_top
         with col_c2:
             if "cb_input" not in st.session_state:
-                st.session_state.cb_input = int(c_price * 0.90)
-            channel_bot = st.number_input("하단(지지)", step=100, key="cb_input")
+                st.session_state.cb_input = float(c_price * 0.90) if is_overseas else int(c_price * 0.90)
+            channel_bot = st.number_input(f"하단(지지) {unit}", step=price_step, key="cb_input")
             st.session_state.ch_bot = channel_bot
             
-        hard_sl = int(channel_bot * 0.96)
+        hard_sl = channel_bot * 0.96
+        if not is_overseas: hard_sl = int(hard_sl)
         
         col_h1, col_h2 = st.columns([6, 4])
         with col_h1:
             st.markdown(f"<p style='font-size: 0.85rem; color: #d1d4dc; margin-top: 2px; margin-bottom: 0;'>최종 손절선 (-4%)</p>", unsafe_allow_html=True)
         with col_h2:
-            st.markdown(f"<p style='font-size: 0.95rem; font-weight: bold; text-align: right; margin-top: 2px; margin-bottom: 0;'>{hard_sl:,} 원</p>", unsafe_allow_html=True)
+            fmt_sl = f"{hard_sl:,.2f}" if is_overseas else f"{int(hard_sl):,}"
+            st.markdown(f"<p style='font-size: 0.95rem; font-weight: bold; text-align: right; margin-top: 2px; margin-bottom: 0;'>{fmt_sl} {unit}</p>", unsafe_allow_html=True)
             
         st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
         
@@ -55,7 +65,7 @@ def render_settings_panel(c_price):
         with col_b1:
             st.markdown("<p style='font-size: 0.85rem; font-weight: bold; margin-top: 5px; margin-bottom: 0;'>투입 금액</p>", unsafe_allow_html=True)
         with col_b2:
-            total_budget = st.number_input("총 투입 예산(원)", value=3000000, step=100000, label_visibility="collapsed", key="budget_input")
+            total_budget = st.number_input(f"총 투입 예산({unit})", value=def_budget, step=budget_step, label_visibility="collapsed", key="budget_input")
             
         col_w1, col_w2, col_w3, col_w4 = st.columns(4)
         with col_w1: w1 = st.number_input("1차", 0, 100, 3, key="w1_input")
@@ -79,9 +89,9 @@ def render_settings_panel(c_price):
         st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #E74C3C;'>📏 저항선 가격 설정</div>", unsafe_allow_html=True)
         
         if "resist_input" not in st.session_state:
-            st.session_state.resist_input = int(c_price)
+            st.session_state.resist_input = float(c_price) if is_overseas else int(c_price)
             
-        resist_price = st.number_input("저항선 가격 (원)", step=100, key="resist_input", label_visibility="collapsed")
+        resist_price = st.number_input(f"저항선 가격 ({unit})", step=price_step, key="resist_input", label_visibility="collapsed")
         
         st.markdown("<hr style='margin: 10px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
         st.markdown("<div style='font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: #E74C3C;'>💰 단기 투자 예산 및 비중</div>", unsafe_allow_html=True)
@@ -90,7 +100,7 @@ def render_settings_panel(c_price):
         with col_st_b1:
             st.markdown("<p style='font-size: 0.85rem; font-weight: bold; margin-top: 5px; margin-bottom: 0;'>투입 금액</p>", unsafe_allow_html=True)
         with col_st_b2:
-            st_budget = st.number_input("단기 예산(원)", value=3000000, step=100000, label_visibility="collapsed", key="st_budget_input")
+            st_budget = st.number_input(f"단기 예산({unit})", value=def_budget, step=budget_step, label_visibility="collapsed", key="st_budget_input")
             
         st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc; margin-top: 8px; margin-bottom: 2px;'>1~4차 진입 비중</p>", unsafe_allow_html=True)
         
