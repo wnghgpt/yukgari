@@ -100,17 +100,27 @@ def render_settings_panel(c_price):
         with col_st_b1:
             st.markdown("<p style='font-size: 0.85rem; font-weight: bold; margin-top: 5px; margin-bottom: 0;'>투입 금액</p>", unsafe_allow_html=True)
         with col_st_b2:
-            st_budget = st.number_input(f"단기 예산({unit})", value=def_budget, step=budget_step, label_visibility="collapsed", key="st_budget_input")
+            st_def_budget = 2000.0 if is_overseas else 5000000.0
+            st_budget = st.number_input(f"단기 예산({unit})", value=st_def_budget, step=budget_step, label_visibility="collapsed", key="st_budget_input")
             
         st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc; margin-top: 8px; margin-bottom: 2px;'>1~4차 진입 비중</p>", unsafe_allow_html=True)
         
         col_stw1, col_stw2, col_stw3, col_stw4 = st.columns(4)
-        with col_stw1: st_w1 = st.number_input("1차 비중", 0, 100, 1, key="st_w1_input", label_visibility="collapsed")
+        with col_stw1: st_w1 = st.number_input("1차 비중", 0, 100, 4, key="st_w1_input", label_visibility="collapsed")
         with col_stw2: st_w2 = st.number_input("2차 비중", 0, 100, 1, key="st_w2_input", label_visibility="collapsed")
         with col_stw3: st_w3 = st.number_input("3차 비중", 0, 100, 1, key="st_w3_input", label_visibility="collapsed")
         with col_stw4: st_w4 = st.number_input("4차 비중", 0, 100, 1, key="st_w4_input", label_visibility="collapsed")
         
         st_weights = [float(st_w1), float(st_w2), float(st_w3), float(st_w4)]
+
+        st.markdown("<p style='font-size: 0.8rem; color: #E74C3C; margin-top: 8px; margin-bottom: 2px;'>⚡ 손절 설정 (비중 / 부분폭% / 최종폭%)</p>", unsafe_allow_html=True)
+        col_sl1, col_sl2, col_sl3 = st.columns(3)
+        with col_sl1:
+            st_partial_cut = st.number_input("비중", 0, 100, 3, key="st_partial_cut_input")
+        with col_sl2:
+            st_partial_sl_pct = st.number_input("부분(%)", 0.0, 20.0, 4.0, step=0.1, key="st_psl_pct_input")
+        with col_sl3:
+            st_hard_sl_pct = st.number_input("최종(%)", 0.0, 30.0, 10.0, step=0.1, key="st_hsl_pct_input")
 
     with st.expander("장기: 조정 시 매집", expanded=False):
         st.markdown("<p style='font-size: 0.8rem; color: #d1d4dc;'>차트 보조선 출력 및 개별 파라미터 설정 예정 공간</p>", unsafe_allow_html=True)
@@ -130,6 +140,9 @@ def render_settings_panel(c_price):
             "rr_targets": st_rr_targets_sel,
             "resist_price": resist_price,
             "budget": st_budget,
-            "weights": st_weights
+            "weights": st_weights,
+            "partial_cut_weight": float(st_partial_cut),
+            "partial_sl_pct": st_partial_sl_pct,
+            "hard_sl_pct": st_hard_sl_pct
         }
     }

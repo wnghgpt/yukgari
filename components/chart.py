@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 from streamlit_lightweight_charts import renderLightweightCharts
 
-def render_chart(df_ohlcv, mid_term_params, short_term_params, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price):
+def render_chart(df_ohlcv, mid_term_params, short_term_params, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, st_partial_sl=None):
     if df_ohlcv is not None and not df_ohlcv.empty:
         plot_df = df_ohlcv.sort_values('Date', ascending=True)
         candles = []
@@ -87,6 +87,8 @@ def render_chart(df_ohlcv, mid_term_params, short_term_params, calc_res, rr_targ
             
             if st_avg_price > 0:
                 add_line(st_avg_price, "#FF9800", 0, "평단", width=2)
+                if st_partial_sl:
+                    add_line(st_partial_sl, "#FF6B35", 2, "-4%손절")
                 add_line(st_hard_sl, "#FF3131", 0, "-10%")
                 
                 st_risk = st_avg_price - st_hard_sl

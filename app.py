@@ -216,7 +216,9 @@ st_prices = []
 st_alloc = []
 st_avg_price = 0
 st_hard_sl = 0
+st_partial_sl = 0
 st_loss = 0
+partial_cut_w = short_term.get("partial_cut_weight", 0)
 
 if st_sum_w > 0:
     resist_price = short_term["resist_price"]
@@ -224,8 +226,30 @@ if st_sum_w > 0:
     st_prices = [resist_price * 1.02, resist_price * 0.98, resist_price * 0.94, resist_price * 0.91]
     st_alloc = [(w / st_sum_w) * st_budget for w in short_term["weights"]]
     st_avg_price = sum(p * a for p, a in zip(st_prices, st_alloc)) / st_budget if st_budget > 0 else 0
-    st_hard_sl = resist_price * 0.90
-    st_loss = st_budget * (1 - (st_hard_sl / st_avg_price)) if st_avg_price > 0 else 0
+    
+    # 1. 하드 손절가: "저항선 가격" 대비 사용자가 설정한 하드 손절 폭(%) 적용
+    st_hard_sl_pct = short_term.get("hard_sl_pct", 10.0)
+    st_hard_sl = resist_price * (1 - st_hard_sl_pct / 100)
+    
+    # 2. 부분 손절가: "저항선 가격" 대비 사용자가 설정한 부분 손절 폭(%) 적용
+    st_partial_sl_pct = short_term.get("partial_sl_pct", 4.0)
+    st_partial_sl = resist_price * (1 - st_partial_sl_pct / 100)
+
+    # 3. 손실액 계산 (전체 예산 비중 기준)
+    partial_cut_amt = (partial_cut_w / st_sum_w) * st_budget if st_sum_w > 0 else 0
+    
+    # [1단계] 부분 손절 확정 손실
+    st_partial_loss = partial_cut_amt * (1 - (st_partial_sl / st_avg_price)) if st_avg_price > 0 else 0
+    
+    # [2단계] 나머지 잔량 하드 손절 손실 (평단가와 저항선 기준 하드손절가 사이의 이격률 계산)
+    remaining_amt = st_budget - partial_cut_amt
+    st_final_loss = remaining_amt * (1 - (st_hard_sl / st_avg_price)) if st_avg_price > 0 else 0
+    
+    # 최종 손실액 합산
+    st_loss = st_partial_loss + st_final_loss
+    
+    # [비교용] 부분 손절 없을 경우의 손실률 (%)
+    st_loss_no_partial = (1 - (st_hard_sl / st_avg_price)) * 100 if st_avg_price > 0 else 0
 
 # --- 4. 차트 분석 영역 (상단 좌측) ---
 df_ohlcv = None
@@ -257,10 +281,10 @@ with top_left:
             )
             
             # 차트 렌더링
-            render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price)
-            
+            render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, st_partial_sl=st_partial_sl)
+
             # 시나리오 카드 렌더링
-            render_scenario_cards(mid_term, short_term, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, short_term["weights"], st_alloc, short_term["budget"], st_loss, symbol=symbol, name=name)
+            render_scenario_cards(mid_term, short_term, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, short_term["weights"], st_alloc, short_term["budget"], st_loss, symbol=symbol, name=name, st_partial_sl=st_partial_sl, partial_cut_weight=partial_cut_w, st_loss_no_partial=st_loss_no_partial)
             
         except Exception as e:
             st.error(f"계산 중 오류 발생: {e}")
