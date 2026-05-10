@@ -68,10 +68,10 @@ def render_settings_panel(c_price):
             total_budget = st.number_input(f"총 투입 예산({unit})", value=def_budget, step=budget_step, label_visibility="collapsed", key="budget_input")
             
         col_w1, col_w2, col_w3, col_w4 = st.columns(4)
-        with col_w1: w1 = st.number_input("1차", 0, 100, 3, key="w1_input")
-        with col_w2: w2 = st.number_input("2차", 0, 100, 3, key="w2_input")
-        with col_w3: w3 = st.number_input("3차", 0, 100, 3, key="w3_input")
-        with col_w4: w4 = st.number_input("4차", 0, 100, 0, key="w4_input")
+        with col_w1: w1 = st.number_input("1차", 0, 100, 1, key="w1_input")
+        with col_w2: w2 = st.number_input("2차", 0, 100, 1, key="w2_input")
+        with col_w3: w3 = st.number_input("3차", 0, 100, 1, key="w3_input")
+        with col_w4: w4 = st.number_input("4차", 0, 100, 1, key="w4_input")
         
         weights = [float(w1), float(w2), float(w3), float(w4)]
 

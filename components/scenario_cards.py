@@ -27,7 +27,7 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                 weights=mid_term_params["weights"]
             )
             with st.container(border=True):
-                st.markdown(f"<h5 style='color: #3498DB; margin-bottom: 10px;'>📊 중기</h5>", unsafe_allow_html=True)
+                st.markdown(f"<h5 style='color: #3498DB; margin-bottom: 2px;'>📊 중기</h5><div style='font-size: 0.6rem; color: #8a8d9a; margin-bottom: 8px;'>전략: 채널 하단~상단 4분할 매수</div>", unsafe_allow_html=True)
                 st.markdown(f"""
                     <div style='font-size: 0.8rem; line-height: 1.4;'>
                         <b>평단:</b> {fmt_p(sc_res['avg_price'])}{unit} | <b>보유:</b> {int(sc_res['total_qty']):,}주<br>
@@ -110,7 +110,7 @@ def render_scenario_cards(mid_term_params, short_term_params, c_price, st_avg_pr
                 st_loss_pct = (st_loss / st_budget) * 100 if st_budget > 0 else 0
                 
                 with st.container(border=True):
-                    st.markdown(f"<h5 style='color: #E74C3C; margin-bottom: 10px;'>⚖️ 단기</h5>", unsafe_allow_html=True)
+                    st.markdown(f"<h5 style='color: #E74C3C; margin-bottom: 2px;'>⚖️ 단기</h5><div style='font-size: 0.6rem; color: #8a8d9a; margin-bottom: 8px;'>전략: +2 / -2 / -6 / -9%</div>", unsafe_allow_html=True)
                     st.markdown(f"""
                         <div style='font-size: 0.8rem; line-height: 1.4;'>
                             <b>평단:</b> {fmt_p(st_avg_price)}{unit} | <b>보유:</b> {st_total_qty:,}주<br>

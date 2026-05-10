@@ -261,6 +261,7 @@ with top_left:
         candle_count = st.slider("캔들 수", 100, 2000, 500, label_visibility="collapsed")
     with col_ctl3:
         period_option = st.radio("주기", ["일봉", "주봉"], horizontal=True, label_visibility="collapsed")
+        show_rsi = st.checkbox("RSI", value=False, key="show_rsi")
     
     period_code = 'D' if period_option == "일봉" else 'W'
     df_ohlcv = cached_ohlcv(symbol, count=candle_count, period=period_code)
