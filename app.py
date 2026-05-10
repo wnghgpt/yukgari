@@ -282,7 +282,7 @@ with top_left:
             )
             
             # 차트 렌더링
-            render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, st_partial_sl=st_partial_sl)
+            render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, st_partial_sl=st_partial_sl, show_rsi=show_rsi)
 
             # 시나리오 카드 렌더링
             render_scenario_cards(mid_term, short_term, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, short_term["weights"], st_alloc, short_term["budget"], st_loss, symbol=symbol, name=name, st_partial_sl=st_partial_sl, partial_cut_weight=partial_cut_w, st_loss_no_partial=st_loss_no_partial)

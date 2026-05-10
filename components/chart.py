@@ -3,7 +3,16 @@ import pandas as pd
 from datetime import datetime
 from streamlit_lightweight_charts import renderLightweightCharts
 
-def render_chart(df_ohlcv, mid_term_params, short_term_params, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, st_partial_sl=None):
+def _calc_rsi(close: pd.Series, period: int = 14) -> pd.Series:
+    delta = close.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.ewm(com=period - 1, min_periods=period).mean()
+    avg_loss = loss.ewm(com=period - 1, min_periods=period).mean()
+    rs = avg_gain / avg_loss
+    return 100 - (100 / (1 + rs))
+
+def render_chart(df_ohlcv, mid_term_params, short_term_params, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, st_partial_sl=None, show_rsi=False):
     if df_ohlcv is not None and not df_ohlcv.empty:
         plot_df = df_ohlcv.sort_values('Date', ascending=True)
         candles = []
