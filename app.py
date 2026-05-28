@@ -4,14 +4,13 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 from data_loader import StockDataLoader
-from calculator import StrategyCalculator
 
 # 컴포넌트 임포트
 from components.styles import apply_custom_styles
 from components.sidebar import render_sidebar
 from components.settings_panel import render_settings_panel
 from components.chart import render_chart
-from components.scenario_cards import render_scenario_cards
+from components.trade_journal import render_trade_journal
 from components.order_panel import render_order_input, render_order_status
 from components.account_panel import render_account_panel
 
@@ -118,7 +117,7 @@ top_left, top_right = st.columns([7, 3])
 
 # 검색창을 차트 바로 위 콤팩트 레이아웃으로 배치
 with top_left:
-    col_ctl0, col_ctl1, col_ctl2, col_ctl3 = st.columns([2, 2, 3, 3])
+    col_star, col_ctl0, col_ctl1, col_ctl2, col_ctl3, col_ctl4, col_ctl5 = st.columns([0.5, 2, 2, 3, 1.5, 1, 1])
     with col_ctl0:
         # 관심종목 클릭 시 값이 바뀌도록 key 설정 및 세션 상태 관리
         if "search_input_val" not in st.session_state:
@@ -173,7 +172,10 @@ if "last_symbol" not in st.session_state or st.session_state.last_symbol != symb
     st.session_state.ct_input = float(c_price) if is_overseas else int(c_price)
     st.session_state.cb_input = float(c_price * 0.90) if is_overseas else int(c_price * 0.90)
     st.session_state.resist_input = float(c_price) if is_overseas else int(c_price)
-    
+    st.session_state.support_input = float(c_price) if is_overseas else int(c_price)
+    st.session_state.show_user_lines = False
+    st.session_state.show_short_lines = False
+
     # 웹소켓 동적 구독 요청
     if WS_CLIENT and WS_LOOP:
         try:
@@ -182,6 +184,17 @@ if "last_symbol" not in st.session_state or st.session_state.last_symbol != symb
             pass
 
 with top_left:
+    with col_star:
+        from supabase_db import SupabaseDB
+        wl = SupabaseDB.fetch_watchlist() if SupabaseDB.is_connected() else []
+        already = any(w["stock_code"] == symbol for w in wl)
+        if already:
+            st.markdown("<div style='font-size:1.3rem; padding-top:4px;'>⭐</div>", unsafe_allow_html=True)
+        else:
+            if st.button("☆", key="btn_add_wl_header"):
+                m_type = "US" if is_overseas else "KR"
+                SupabaseDB.insert_watchlist(symbol, name, m_type)
+                st.rerun()
     with col_ctl1:
         st.markdown(f"""
             <div style='display: flex; flex-direction: column; padding-top: 2px; gap: 0;'>
@@ -205,92 +218,42 @@ with top_left:
 
 # --- 3. 설정 패널 (상단 우측) ---
 with top_right:
-    params = render_settings_panel(c_price)
+    params = render_settings_panel(c_price, symbol=symbol, name=name)
 
 mid_term = params["mid_term"]
 short_term = params["short_term"]
-
-# 단기 전략 연산 로직
-st_sum_w = sum(short_term["weights"])
-st_prices = []
-st_alloc = []
-st_avg_price = 0
-st_hard_sl = 0
-st_partial_sl = 0
-st_loss = 0
-partial_cut_w = short_term.get("partial_cut_weight", 0)
-
-if st_sum_w > 0:
-    resist_price = short_term["resist_price"]
-    st_budget = short_term["budget"]
-    st_prices = [resist_price * 1.02, resist_price * 0.98, resist_price * 0.94, resist_price * 0.91]
-    st_alloc = [(w / st_sum_w) * st_budget for w in short_term["weights"]]
-    st_avg_price = sum(p * a for p, a in zip(st_prices, st_alloc)) / st_budget if st_budget > 0 else 0
-    
-    # 1. 하드 손절가: "저항선 가격" 대비 사용자가 설정한 하드 손절 폭(%) 적용
-    st_hard_sl_pct = short_term.get("hard_sl_pct", 10.0)
-    st_hard_sl = resist_price * (1 - st_hard_sl_pct / 100)
-    
-    # 2. 부분 손절가: "저항선 가격" 대비 사용자가 설정한 부분 손절 폭(%) 적용
-    st_partial_sl_pct = short_term.get("partial_sl_pct", 4.0)
-    st_partial_sl = resist_price * (1 - st_partial_sl_pct / 100)
-
-    # 3. 손실액 계산 (전체 예산 비중 기준)
-    partial_cut_amt = (partial_cut_w / st_sum_w) * st_budget if st_sum_w > 0 else 0
-    
-    # [1단계] 부분 손절 확정 손실
-    st_partial_loss = partial_cut_amt * (1 - (st_partial_sl / st_avg_price)) if st_avg_price > 0 else 0
-    
-    # [2단계] 나머지 잔량 하드 손절 손실 (평단가와 저항선 기준 하드손절가 사이의 이격률 계산)
-    remaining_amt = st_budget - partial_cut_amt
-    st_final_loss = remaining_amt * (1 - (st_hard_sl / st_avg_price)) if st_avg_price > 0 else 0
-    
-    # 최종 손실액 합산
-    st_loss = st_partial_loss + st_final_loss
-    
-    # [비교용] 부분 손절 없을 경우의 손실률 (%)
-    st_loss_no_partial = (1 - (st_hard_sl / st_avg_price)) * 100 if st_avg_price > 0 else 0
+calc_res = params["calc_res"]
+rr_targets = params["rr_targets"]
+st_avg_price = params["st_avg_price"]
+st_hard_sl = params["st_hard_sl"]
+st_prices = params["st_prices"]
+st_alloc = params["st_alloc"]
+st_loss = params["st_loss"]
 
 # --- 4. 차트 분석 영역 (상단 좌측) ---
 df_ohlcv = None
-calc_res = None
-rr_targets = None
 
 with top_left:
     with col_ctl2:
-        candle_count = st.slider("캔들 수", 100, 2000, 500, label_visibility="collapsed")
+        candle_count = st.slider("캔들 수", 100, 2000, 900, label_visibility="collapsed")
     with col_ctl3:
-        period_option = st.radio("주기", ["일봉", "주봉"], horizontal=True, label_visibility="collapsed")
-        show_rsi = st.checkbox("RSI", value=False, key="show_rsi")
-    
-    period_code = 'D' if period_option == "일봉" else 'W'
+        period_sel = st.pills("주기", ["일", "주"], default="일", label_visibility="collapsed", key="period_pills")
+    with col_ctl4:
+        show_rsi = st.checkbox("RSI", value=True, key="show_rsi")
+    with col_ctl5:
+        show_ma = st.checkbox("MA", value=True, key="show_ma")
+
+    ma_options = {5: show_ma, 20: show_ma, 60: show_ma, 120: show_ma, 240: show_ma}
+    period_code = 'W' if period_sel == "주" else 'D'
     df_ohlcv = cached_ohlcv(symbol, count=candle_count, period=period_code)
     
-    if df_ohlcv is not None and not df_ohlcv.empty:
-        try:
-            calc_res = StrategyCalculator.calculate_pyramid(
-                channel_top=float(mid_term["channel_top"]),
-                channel_bot=float(mid_term["channel_bot"]),
-                hard_stop_loss=float(mid_term["hard_sl"]),
-                base_budget=float(mid_term["budget"]),
-                weights=mid_term["weights"]
-            )
-            rr_targets = StrategyCalculator.calculate_rr_targets(
-                avg_price=calc_res['avg_price'],
-                hard_stop_loss=calc_res['hard_stop_loss'],
-                rr_multipliers=mid_term["rr_targets"]
-            )
-            
-            # 차트 렌더링
-            render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, st_partial_sl=st_partial_sl, show_rsi=show_rsi)
-
-            # 시나리오 카드 렌더링
-            render_scenario_cards(mid_term, short_term, c_price, st_avg_price, st_hard_sl, st_sum_w, st_prices, short_term["weights"], st_alloc, short_term["budget"], st_loss, symbol=symbol, name=name, st_partial_sl=st_partial_sl, partial_cut_weight=partial_cut_w, st_loss_no_partial=st_loss_no_partial)
-            
-        except Exception as e:
-            st.error(f"계산 중 오류 발생: {e}")
+    if df_ohlcv is not None and not df_ohlcv.empty and calc_res is not None:
+        render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, show_rsi=show_rsi, ma_options=ma_options)
     else:
         st.warning("데이터를 불러올 수 없습니다. 종목 코드를 확인해 주세요.")
+
+st.divider()
+render_trade_journal()
 
 st.divider()
 

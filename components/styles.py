@@ -43,12 +43,35 @@ def apply_custom_styles():
             font-size: 0.75rem !important;
         }
         
-        /* 검색창 및 입력 박스 크기/폰트 축소 */
+        /* 입력 박스 크기/폰트 축소 */
         div[data-testid="stTextInput"] input,
-        div[data-testid="stNumberInput"] input {
+        div[data-testid="stNumberInput"] input,
+        div[data-testid="stDateInput"] input {
             font-size: 0.8rem !important;
             padding: 4px 8px !important;
             height: 30px !important;
+        }
+        div[data-testid="stTextInput"] div[role="group"],
+        div[data-testid="stNumberInput"] div[role="group"],
+        div[data-testid="stDateInput"] div[role="group"] {
+            height: 30px !important;
+            min-height: 30px !important;
+        }
+        div[data-testid="stTextInput"] > div,
+        div[data-testid="stNumberInput"] > div,
+        div[data-testid="stDateInput"] > div {
+            height: 30px !important;
+            min-height: 30px !important;
+            overflow: hidden !important;
+        }
+        /* selectbox 높이 축소 */
+        div[data-testid="stSelectbox"] > div > div {
+            height: 30px !important;
+            min-height: 30px !important;
+        }
+        div[data-testid="stSelectbox"] > div > div > div {
+            font-size: 0.8rem !important;
+            padding: 2px 8px !important;
         }
         
         /* 입력창 라벨 폰트 축소 및 여백 제거 */
@@ -71,6 +94,11 @@ def apply_custom_styles():
         /* 버튼이 사라진 공간만큼 입력창 너비 확장 */
         div[data-testid="stNumberInput"] div[role="group"] > div {
             width: 100% !important;
+        }
+
+        /* data_editor 컬럼 헤더 타입 아이콘 숨기기 */
+        [data-testid="stDataFrameResizable"] [role="columnheader"] svg {
+            display: none !important;
         }
         </style>
     """, unsafe_allow_html=True)

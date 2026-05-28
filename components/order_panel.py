@@ -42,7 +42,7 @@ def render_order_input(symbol, name, c_price, mid_term=None):
             n_qty = st.number_input("주문 수량(주)", value=1, step=1, key="n_qty")
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🛒 주문 전송", use_container_width=True, key="btn_normal_order"):
+            if st.button("🛒 주문 전송", width="stretch", key="btn_normal_order"):
                 acc_idx = st.session_state.get("selected_acc_idx", 4)
                 kis = KISClient(acc_idx=acc_idx)
                 
@@ -109,7 +109,7 @@ def render_order_input(symbol, name, c_price, mid_term=None):
                         zones = calc_res.get("zones", [])
                         
                         st.markdown("<br>", unsafe_allow_html=True)
-                        if st.button("⚡ 중기 전략 일괄 감시 시작", use_container_width=True, key="btn_batch_mid_term"):
+                        if st.button("⚡ 중기 전략 일괄 감시 시작", width="stretch", key="btn_batch_mid_term"):
                             for i, zone in enumerate(zones):
                                 target_p = float(zone["price"]) if is_overseas else int(zone["price"])
                                 qty = int(zone["qty"])
@@ -149,7 +149,7 @@ def render_order_input(symbol, name, c_price, mid_term=None):
                 
             st.markdown("<br>", unsafe_allow_html=True)
             if buy_strat not in ["미사용", "조건부 분할매수"]:
-                if st.button("🟢 매수 감시 시작", use_container_width=True, key="btn_buy_start_tab"):
+                if st.button("🟢 매수 감시 시작", width="stretch", key="btn_buy_start_tab"):
                     new_order = {
                         "code": symbol,
                         "name": name,
@@ -206,7 +206,7 @@ def render_order_input(symbol, name, c_price, mid_term=None):
                 
             st.markdown("<br>", unsafe_allow_html=True)
             if sell_strat != "미사용":
-                if st.button("🔴 매도 감시 시작", use_container_width=True, key="btn_sell_start_tab"):
+                if st.button("🔴 매도 감시 시작", width="stretch", key="btn_sell_start_tab"):
                     new_order = {
                         "code": symbol,
                         "name": name,
@@ -280,7 +280,7 @@ def render_order_status(symbol, name, c_price):
             color_tag = "#2ecc71" if "타점" in status_text else "#f1c40f"
             r_cols[6].markdown(f"<span style='font-size:0.85rem; color:{color_tag}; font-weight:bold;'>{status_text}</span>", unsafe_allow_html=True)
             
-            if r_cols[7].button("❌", key=f"del_btn_{i}_{ord_item.get('id', 0)}", use_container_width=True):
+            if r_cols[7].button("❌", key=f"del_btn_{i}_{ord_item.get('id', 0)}", width="stretch"):
                 from supabase_db import SupabaseDB
                 if ord_item.get("id"):
                     SupabaseDB.delete_watch_order(ord_item["id"])
@@ -305,5 +305,5 @@ def render_order_status(symbol, name, c_price):
                 "주문조건": ord_item['desc'],
                 "상태": ord_item['status']
             })
-        st.dataframe(pd.DataFrame(df_reg_data), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(df_reg_data), width="stretch", hide_index=True)
 

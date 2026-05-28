@@ -1,4 +1,7 @@
 import os
+import math
+import numpy as np
+from datetime import date, datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -163,4 +166,102 @@ class SupabaseDB:
             return len(response.data) > 0
         except Exception as e:
             print(f"DB Delete Watchlist Error: {e}")
+            return False
+
+    # --- [4] 매매 일지 (trades) CRUD ---
+
+    @staticmethod
+    def fetch_trades():
+        if not SupabaseDB.is_connected():
+            return []
+        try:
+            response = supabase.table("trades").select("*").order("date", desc=True).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            print(f"DB Fetch Trades Error: {e}")
+            return []
+
+    @staticmethod
+    def _sanitize(payload: dict) -> dict:
+        import pandas as pd
+        result = {}
+        for k, v in payload.items():
+            if v is None or v == "":
+                result[k] = None
+                continue
+            # pd.NaT / pd.NA 먼저 처리 (isinstance datetime 체크보다 앞에)
+            try:
+                if pd.isna(v):
+                    result[k] = None
+                    continue
+            except (TypeError, ValueError):
+                pass
+            if isinstance(v, bool):
+                result[k] = v
+            elif isinstance(v, np.bool_):
+                result[k] = bool(v)
+            elif isinstance(v, np.integer):
+                result[k] = int(v)
+            elif isinstance(v, np.floating):
+                f = float(v)
+                if math.isnan(f):
+                    result[k] = None
+                elif f == int(f):
+                    result[k] = int(f)
+                else:
+                    result[k] = f
+            elif isinstance(v, float):
+                if math.isnan(v):
+                    result[k] = None
+                elif v == int(v):
+                    result[k] = int(v)
+                else:
+                    result[k] = v
+            elif isinstance(v, datetime):
+                result[k] = v.isoformat()
+            elif isinstance(v, date):
+                result[k] = v.isoformat()
+            else:
+                result[k] = v
+        return result
+
+    @staticmethod
+    def insert_trade(payload: dict):
+        if not SupabaseDB.is_connected():
+            return None, "Supabase 미연결"
+        try:
+            sanitized = SupabaseDB._sanitize(payload)
+            clean = {k: v for k, v in sanitized.items() if v is not None and k != "id" and k != "created_at"}
+            response = supabase.table("trades").insert(clean).execute()
+            if response.data:
+                return response.data[0], None
+            return None, "응답 데이터 없음"
+        except Exception as e:
+            print(f"DB Insert Trade Error: {e}")
+            return None, str(e)
+
+    @staticmethod
+    def update_trade(trade_id: str, payload: dict):
+        if not SupabaseDB.is_connected():
+            return False
+        try:
+            sanitized = SupabaseDB._sanitize(payload)
+            clean = {k: v for k, v in sanitized.items() if k not in ("id", "created_at")}
+            print(f"[UPDATE] trade_id={trade_id[:8]} payload={clean}")
+            response = supabase.table("trades").update(clean).eq("id", trade_id).execute()
+            print(f"[UPDATE] response.data={response.data}")
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"[UPDATE] Exception: {e}")
+            return False
+
+    @staticmethod
+    def delete_trade(trade_id: str):
+        if not SupabaseDB.is_connected():
+            return False
+        try:
+            response = supabase.table("trades").delete().eq("id", trade_id).execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"DB Delete Trade Error: {e}")
             return False
