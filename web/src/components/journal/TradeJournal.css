@@ -1,0 +1,147 @@
+.trade-journal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.journal-loading,
+.journal-empty {
+  color: #4b5563;
+  font-size: 12px;
+  padding: 12px 0;
+}
+
+/* ── 헤더 ── */
+.journal-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.journal-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #d1d5db;
+  white-space: nowrap;
+}
+
+/* ── 요약 바 ── */
+.journal-summary {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.summary-item {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.summary-item b {
+  color: #d1d5db;
+  margin-left: 3px;
+}
+
+/* ── 테이블 ── */
+.journal-table-wrap {
+  overflow-x: auto;
+}
+
+.journal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.journal-table thead th {
+  color: #6b7280;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-bottom: 1px solid #2d2d2d;
+  text-align: left;
+}
+
+.journal-row {
+  cursor: pointer;
+  border-bottom: 1px solid #1f1f1f;
+  transition: background 0.1s;
+}
+
+.journal-row:hover { background: #1e2330; }
+
+.journal-table td {
+  padding: 5px 8px;
+  color: #d1d5db;
+  vertical-align: middle;
+}
+
+/* ── 컬럼별 ── */
+.result-badge {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.td-date    { color: #6b7280; }
+.td-ticker  { font-weight: 600; color: #f9fafb; }
+.td-pattern {
+  color: #9ca3af;
+  max-width: 48px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.td-sl      { color: #ef4444; }
+.td-target  { color: #2ecc71; }
+
+.entry-cell { white-space: nowrap; }
+.entry-sep  { color: #4b5563; margin: 0 2px; }
+.td-days    { color: #6b7280; text-align: right; }
+.td-memo    { color: #6b7280; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.td-na      { color: #4b5563; }
+
+/* ── 인셀 편집 ── */
+.cell-value {
+  display: block;
+  min-width: 20px;
+  min-height: 15px;
+  cursor: text;
+  border-radius: 2px;
+}
+
+.cell-value:hover { background: #1e2330; }
+
+.cell-input {
+  background: #1e2d45;
+  border: 1px solid #3b82f6;
+  color: #f9fafb;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 11px;
+  width: 100%;
+  min-width: 50px;
+  outline: none;
+}
+
+.cell-select { cursor: pointer; min-width: 70px; }
+
+.cell-checkbox { cursor: pointer; accent-color: #3b82f6; }
+
+.td-ro { color: #9ca3af; }
+
+/* ── 삭제 버튼 ── */
+.journal-del-btn {
+  background: none;
+  border: none;
+  color: #4b5563;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.journal-del-btn:hover {
+  background: #2d2d2d;
+  color: #ef4444;
+}

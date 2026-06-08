@@ -166,15 +166,26 @@ status_placeholder.markdown(f"""
 # --- 상태 유지 및 종목 변경 감지 로직 ---
 if "last_symbol" not in st.session_state or st.session_state.last_symbol != symbol:
     st.session_state.last_symbol = symbol
-    # 해외 주식은 소수점 유지, 국내 주식은 정수 유지
-    st.session_state.ch_top = float(c_price) if is_overseas else int(c_price)
-    st.session_state.ch_bot = float(c_price * 0.90) if is_overseas else int(c_price * 0.90)
-    st.session_state.ct_input = float(c_price) if is_overseas else int(c_price)
-    st.session_state.cb_input = float(c_price * 0.90) if is_overseas else int(c_price * 0.90)
-    st.session_state.resist_input = float(c_price) if is_overseas else int(c_price)
-    st.session_state.support_input = float(c_price) if is_overseas else int(c_price)
-    st.session_state.show_user_lines = False
-    st.session_state.show_short_lines = False
+    dp  = float(c_price) if is_overseas else int(c_price)
+    dp90 = float(c_price * 0.90) if is_overseas else int(c_price * 0.90)
+    # 역추세 반등
+    st.session_state.ct_input_rev = dp
+    st.session_state.cb_input_rev = dp90
+    # 우량주 조정
+    st.session_state.ct_input_bc = dp
+    st.session_state.cb_input_bc = dp90
+    # 상승 돌파 / 횡보 돌파
+    st.session_state.resist_input_break = dp
+    st.session_state.resist_input_rev  = dp
+    st.session_state.resist_input_sw   = dp
+    st.session_state.support_input_break = dp90
+    st.session_state.support_input_rev   = dp90
+    st.session_state.support_input_sw    = dp90
+    # 보조선 초기화
+    st.session_state.show_rev_lines   = False
+    st.session_state.show_bc_lines    = False
+    st.session_state.show_break_lines = False
+    st.session_state.show_sw_lines    = False
 
     # 웹소켓 동적 구독 요청
     if WS_CLIENT and WS_LOOP:
@@ -247,7 +258,7 @@ with top_left:
     period_code = 'W' if period_sel == "주" else 'D'
     df_ohlcv = cached_ohlcv(symbol, count=candle_count, period=period_code)
     
-    if df_ohlcv is not None and not df_ohlcv.empty and calc_res is not None:
+    if df_ohlcv is not None and not df_ohlcv.empty:
         render_chart(df_ohlcv, mid_term, short_term, calc_res, rr_targets, st_avg_price, st_hard_sl, c_price, show_rsi=show_rsi, ma_options=ma_options)
     else:
         st.warning("데이터를 불러올 수 없습니다. 종목 코드를 확인해 주세요.")
@@ -260,7 +271,7 @@ st.divider()
 # --- 5. 하단 레이아웃 (주문/계좌 vs 주문창) ---
 bottom_left, bottom_right = st.columns([7, 3])
 
-if df_ohlcv is not None and not df_ohlcv.empty and calc_res is not None:
+if df_ohlcv is not None and not df_ohlcv.empty:
     with bottom_right:
         render_order_input(symbol, name, c_price, mid_term=mid_term)
         

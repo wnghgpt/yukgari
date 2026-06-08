@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import date
 from supabase_db import SupabaseDB
 
-PATTERNS = ["손잡이컵", "채널 돌파", "역추세 돌파 - 추세선 / 120선 / 목선", "돌파 후 풀백", "우량주 조정"]
+PATTERNS = ["손잡이컵", "손잡이컵 (놓침)", "역추세", "우량주", "횡보돌파", "횡보돌파 (놓침)"]
 RESULTS  = ["수익", "손절", "보유", "감시"]
 
 # 프론트에서 계산하는 파생 컬럼 — DB 저장/비교에서 제외
@@ -232,23 +232,7 @@ def _render_new_journal_form():
 
     st.markdown("<div style='font-size:0.85rem; font-weight:bold; color:#3498DB; margin-bottom:6px;'>📝 새 일지</div>", unsafe_allow_html=True)
 
-    a, b = st.columns([3, 7])
-    with a: lbl("결과")
-    with b: result = st.selectbox("결과", RESULTS, key="nj_result", label_visibility="collapsed")
-
-    is_done = result in ["수익", "손절"]
-
-    a, b = st.columns([3, 7])
-    with a: lbl("진입일")
-    with b: d = st.date_input("진입일", value=date.today(), key="nj_date", label_visibility="collapsed")
-
-    if is_done:
-        a, b = st.columns([3, 7])
-        with a: lbl("청산일")
-        with b: exit_date = st.date_input("청산일", value=None, key="nj_exit_date", label_visibility="collapsed")
-    else:
-        exit_date = None
-
+    # ── 종목 / 패턴 ──
     a, b = st.columns([3, 7])
     with a: lbl("종목")
     with b: ticker = st.text_input("종목", key="nj_ticker", label_visibility="collapsed")
@@ -257,42 +241,100 @@ def _render_new_journal_form():
     with a: lbl("패턴")
     with b: pattern = st.selectbox("패턴", PATTERNS, key="nj_pattern", label_visibility="collapsed")
 
+    missed = "(놓침)" in pattern
+
     hr()
 
+    # ── 가격 범위 ──
     a, b = st.columns([3, 7])
-    with a: lbl("저항선")
+    with a: st.markdown("<p style='font-size:0.8rem; margin:4px 0 0; color:#000000; font-weight:bold;'>저항선</p>", unsafe_allow_html=True)
     with b:
         if "nj_ct" not in st.session_state:
             st.session_state["nj_ct"] = 0.0
         channel_top = st.number_input("저항선", step=price_step, key="nj_ct", label_visibility="collapsed")
 
-    ct_prev = st.session_state.get("nj_ct_prev", 0.0)
-    if channel_top != ct_prev:
-        if st.session_state.get("nj_cb", 0.0) == ct_prev:
-            st.session_state["nj_cb"] = channel_top
-        st.session_state["nj_ct_prev"] = channel_top
+    need_support = pattern in ["역추세", "우량주", "횡보돌파 (놓침)"]
+    if need_support:
+        a, b = st.columns([3, 7])
+        with a: st.markdown("<p style='font-size:0.8rem; margin:4px 0 0; color:#000000; font-weight:bold;'>지지선</p>", unsafe_allow_html=True)
+        with b:
+            if "nj_cb" not in st.session_state:
+                st.session_state["nj_cb"] = 0.0
+            channel_bottom = st.number_input("지지선", step=price_step, key="nj_cb", label_visibility="collapsed")
+    else:
+        channel_bottom = 0.0
+
+    _STAGES = {
+        "손잡이컵": 2, "손잡이컵 (놓침)": 3,
+        "역추세": 3, "우량주": 3,
+        "횡보돌파": 2, "횡보돌파 (놓침)": 3,
+    }
+    stages = _STAGES.get(pattern, 2)
+
+    # ── 저항선/지지선 변경 시 손절·목표·진입가 자동 계산 ──
+    _prev = st.session_state.get("nj_autofill_prev", {})
+    _curr = {"ct": channel_top, "cb": channel_bottom, "pattern": pattern}
+
+    if _curr != _prev and channel_top > 0:
+        _sl_pct    = {"손잡이컵": 4.0, "손잡이컵 (놓침)": 5.0, "역추세": 8.0, "우량주": 10.0, "횡보돌파": 7.0, "횡보돌파 (놓침)": 7.0}.get(pattern, 4.0)
+        _missed_sl = {"손잡이컵 (놓침)": 5.0, "역추세": 8.0, "우량주": 10.0, "횡보돌파 (놓침)": 7.0}.get(pattern, 8.0)
+        _rr        = {"손잡이컵": 4, "손잡이컵 (놓침)": 4, "역추세": 4, "우량주": 3, "횡보돌파": 5, "횡보돌파 (놓침)": 5}.get(pattern, 4)
+        _is_zone   = pattern in ["역추세", "우량주", "횡보돌파 (놓침)"]
+
+        def _snap(v):
+            return round(float(v), 2) if is_overseas else float(int(round(v)))
+
+        eps, hard_sl, target = [], 0.0, 0.0
+
+        if _is_zone:
+            if channel_bottom > 0 and channel_top > channel_bottom:
+                rng = channel_top - channel_bottom
+                eps = [channel_top - rng/3, channel_top - rng*2/3, channel_bottom]
+                avg = (eps[0]*20 + eps[1]*30 + eps[2]*50) / 100
+                hard_sl = avg * (1 - _missed_sl / 100)
+                target  = avg + _rr * (avg - hard_sl)
+        elif pattern == "손잡이컵 (놓침)":
+            eps = [channel_top * 1.04, channel_top * 1.01, channel_top * 0.98]
+            avg = (eps[0]*30 + eps[1]*40 + eps[2]*30) / 100
+            hard_sl = channel_top * (1 - _sl_pct / 100)
+            target  = avg + _rr * (avg - hard_sl)
+        else:
+            eps = [channel_top * 1.02, channel_top * 0.98]
+            avg = (eps[0]*70 + eps[1]*30) / 100
+            hard_sl = channel_top * (1 - _sl_pct / 100)
+            target  = avg + _rr * (avg - hard_sl)
+
+        if eps:
+            for i, ep_val in enumerate(eps):
+                st.session_state[f"nj_ep{i}_{stages}"] = _snap(ep_val)
+            st.session_state["nj_stop_loss"]    = _snap(hard_sl)
+            st.session_state["nj_target_price"] = _snap(target)
+
+        st.session_state["nj_autofill_prev"] = _curr
+
+    # ── 손절선 / 목표가 ──
+    if "nj_stop_loss" not in st.session_state:
+        st.session_state["nj_stop_loss"] = 0.0
+    if "nj_target_price" not in st.session_state:
+        st.session_state["nj_target_price"] = 0.0
 
     a, b = st.columns([3, 7])
-    with a: lbl("지지선")
-    with b:
-        if "nj_cb" not in st.session_state:
-            st.session_state["nj_cb"] = 0.0
-        channel_bottom = st.number_input("지지선", step=price_step, key="nj_cb", label_visibility="collapsed")
+    with a: lbl("손절선")
+    with b: stop_loss = st.number_input("손절선", step=price_step, key="nj_stop_loss", label_visibility="collapsed")
 
-    if pattern in ["손잡이컵", "채널 돌파", "역추세 돌파 - 추세선 / 120선 / 목선"]:
-        stages = 2
-    else:
-        if channel_top > 0 and channel_bottom > 0 and channel_top > channel_bottom:
-            width_pct = (channel_top - channel_bottom) / channel_bottom * 100
-            stages = 3 if width_pct <= 10 else 4
-            st.markdown(f"<p style='font-size:0.7rem; color:#8a8d9a; margin:2px 0;'>채널 폭 {width_pct:.1f}% → {stages}단계</p>", unsafe_allow_html=True)
-        else:
-            stages = 3
+    a, b = st.columns([3, 7])
+    with a: lbl("목표가")
+    with b: target_price = st.number_input("목표가", step=price_step, key="nj_target_price", label_visibility="collapsed")
 
     hr()
 
+    # ── 매수 기록 ──
     a, b = st.columns([3, 7])
-    with a: st.markdown("<p style='font-size:0.7rem; color:#8a8d9a; margin:2px 0;'>차수</p>", unsafe_allow_html=True)
+    with a: lbl("진입일")
+    with b: d = st.date_input("진입일", value=date.today(), key="nj_date", label_visibility="collapsed")
+
+    a, b = st.columns([3, 7])
+    with a: st.markdown("<p style='font-size:0.7rem; color:#8a8d9a; margin:2px 0;'>매수</p>", unsafe_allow_html=True)
     with b:
         c1, c2 = st.columns(2)
         with c1: st.markdown("<p style='font-size:0.7rem; color:#8a8d9a; margin:2px 0;'>가격</p>", unsafe_allow_html=True)
@@ -300,52 +342,76 @@ def _render_new_journal_form():
 
     entries = []
     for i in range(stages):
+        ep_key = f"nj_ep{i}_{stages}"
+        ew_key = f"nj_ew{i}_{stages}"
+        if ep_key not in st.session_state:
+            st.session_state[ep_key] = 0.0
+        if ew_key not in st.session_state:
+            st.session_state[ew_key] = 0
         a, b = st.columns([3, 7])
         with a: lbl(f"{i+1}차")
         with b:
             c1, c2 = st.columns(2)
-            with c1: ep = st.number_input(f"가격{i+1}", value=0.0, step=price_step, key=f"nj_ep{i}_{stages}", label_visibility="collapsed")
-            with c2: ew = st.number_input(f"수량{i+1}", value=0, step=1, key=f"nj_ew{i}_{stages}", label_visibility="collapsed")
+            with c1: ep = st.number_input(f"가격{i+1}", step=price_step, key=ep_key, label_visibility="collapsed")
+            with c2: ew = st.number_input(f"수량{i+1}", step=1, key=ew_key, label_visibility="collapsed")
         entries.append((ep, ew))
 
     hr()
 
+    # ── 결과 / 청산 ──
     a, b = st.columns([3, 7])
-    with a: lbl("손절선")
-    with b: stop_loss = st.number_input("손절선", value=0.0, step=price_step, key="nj_stop_loss", label_visibility="collapsed")
+    with a: lbl("결과")
+    with b: result = st.selectbox("결과", RESULTS, key="nj_result", label_visibility="collapsed")
 
-    a, b = st.columns([3, 7])
-    with a: lbl("목표가")
-    with b: target_price = st.number_input("목표가", value=0.0, step=price_step, key="nj_target_price", label_visibility="collapsed")
+    is_done = result in ["수익", "손절"]
 
     if is_done:
-        hr()
         a, b = st.columns([3, 7])
-        with a: lbl("청산1가")
-        with b: exit1_price = st.number_input("청산1가", value=0.0, step=price_step, key="nj_exit1_price", label_visibility="collapsed")
+        with a: lbl("청산일")
+        with b: exit_date = st.date_input("청산일", value=None, key="nj_exit_date", label_visibility="collapsed")
 
         a, b = st.columns([3, 7])
-        with a: lbl("청산1(주)")
-        with b: exit1_qty = st.number_input("청산1(주)", value=0, step=1, key="nj_exit1_qty", label_visibility="collapsed")
+        with a: st.markdown("<p style='font-size:0.7rem; color:#8a8d9a; margin:2px 0;'>청산</p>", unsafe_allow_html=True)
+        with b:
+            c1, c2 = st.columns(2)
+            with c1: st.markdown("<p style='font-size:0.7rem; color:#8a8d9a; margin:2px 0;'>가격</p>", unsafe_allow_html=True)
+            with c2: st.markdown("<p style='font-size:0.7rem; color:#8a8d9a; margin:2px 0;'>수량(주)</p>", unsafe_allow_html=True)
+
+        for key, default in [("nj_exit1_price", 0.0), ("nj_exit1_qty", 0),
+                              ("nj_exit2_price", 0.0), ("nj_exit2_qty", 0)]:
+            if key not in st.session_state:
+                st.session_state[key] = default
 
         a, b = st.columns([3, 7])
-        with a: lbl("청산2가")
-        with b: exit2_price = st.number_input("청산2가", value=0.0, step=price_step, key="nj_exit2_price", label_visibility="collapsed")
+        with a: lbl("청산1")
+        with b:
+            c1, c2 = st.columns(2)
+            with c1: exit1_price = st.number_input("청산1가", step=price_step, key="nj_exit1_price", label_visibility="collapsed")
+            with c2: exit1_qty   = st.number_input("청산1(주)", step=1, key="nj_exit1_qty", label_visibility="collapsed")
 
         a, b = st.columns([3, 7])
-        with a: lbl("청산2(주)")
-        with b: exit2_qty = st.number_input("청산2(주)", value=0, step=1, key="nj_exit2_qty", label_visibility="collapsed")
+        with a: lbl("청산2")
+        with b:
+            c1, c2 = st.columns(2)
+            with c1: exit2_price = st.number_input("청산2가", step=price_step, key="nj_exit2_price", label_visibility="collapsed")
+            with c2: exit2_qty   = st.number_input("청산2(주)", step=1, key="nj_exit2_qty", label_visibility="collapsed")
 
-        a, b = st.columns([3, 7])
-        with a: lbl("손절후반등")
-        with b: rebound = st.checkbox("손절 후 반등", key="nj_rebound", label_visibility="collapsed")
-
-        rebound_price = None
-        if rebound:
+        if result == "손절":
             a, b = st.columns([3, 7])
-            with a: lbl("반등가")
-            with b: rebound_price = st.number_input("반등가", value=0.0, step=price_step, key="nj_rebound_price", label_visibility="collapsed")
+            with a: lbl("손절후반등")
+            with b: rebound = st.checkbox("손절 후 반등", key="nj_rebound", label_visibility="collapsed")
+            rebound_price = None
+            if rebound:
+                if "nj_rebound_price" not in st.session_state:
+                    st.session_state["nj_rebound_price"] = 0.0
+                a, b = st.columns([3, 7])
+                with a: lbl("반등가")
+                with b: rebound_price = st.number_input("반등가", step=price_step, key="nj_rebound_price", label_visibility="collapsed")
+        else:
+            rebound = False
+            rebound_price = None
     else:
+        exit_date = None
         exit1_price = exit1_qty = exit2_price = exit2_qty = None
         rebound = False
         rebound_price = None
@@ -439,10 +505,11 @@ def _render_summary_card(df: pd.DataFrame):
         pattern_cols = st.columns(len(PATTERNS))
         short_names = {
             "손잡이컵": "손잡이컵",
-            "채널 돌파": "채널돌파",
-            "역추세 돌파 - 추세선 / 120선 / 목선": "역추세돌파",
-            "돌파 후 풀백": "돌파후풀백",
-            "우량주 조정": "우량주조정",
+            "손잡이컵 (놓침)": "컵(놓침)",
+            "역추세": "역추세",
+            "우량주": "우량주",
+            "횡보돌파": "횡보돌파",
+            "횡보돌파 (놓침)": "횡보(놓침)",
         }
         for pat, col in zip(PATTERNS, pattern_cols):
             pat_df = closed[closed["pattern"] == pat]

@@ -1,0 +1,313 @@
+.calculator {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 12px;
+}
+
+/* ── 공통 헤더 ── */
+.calc-header { padding-bottom: 4px; }
+
+.calc-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.calc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 2;
+  min-width: 0;
+}
+
+.calc-field-sm { flex: 1; }
+
+.calc-field-label {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.calc-field-input {
+  background: #2d2d2d;
+  border: 1px solid #3d3d3d;
+  color: #f9fafb;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  width: 100%;
+  outline: none;
+  min-width: 0;
+}
+
+.calc-field-input:focus { border-color: #3b82f6; }
+
+.calc-loss {
+  font-size: 11px;
+  color: #9ca3af;
+  white-space: nowrap;
+  align-self: flex-end;
+  padding-bottom: 4px;
+}
+
+.loss-val {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.calc-hint {
+  font-size: 10px;
+  color: #4b5563;
+  margin-top: 4px;
+}
+
+.calc-divider {
+  border: none;
+  border-top: 1px solid #2d2d2d;
+  margin: 6px 0;
+}
+
+/* ── 전략 탭 헤더 ── */
+.calc-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.calc-tab {
+  flex: 1;
+  background: #2d2d2d;
+  border: none;
+  color: #6b7280;
+  padding: 4px 2px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.calc-tab:hover { color: #d1d5db; }
+.calc-tab.active {
+  background: #1e3a5f;
+  color: #60a5fa;
+}
+
+/* ── 탭 콘텐츠 ── */
+.calc-tab-content { flex: 1; overflow-y: auto; }
+
+/* ── StrategyTab ── */
+.strategy-tab { display: flex; flex-direction: column; gap: 10px; height: 100%; }
+
+.journal-btns { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+
+.strat-toggles {
+  display: flex;
+  gap: 12px;
+}
+
+.strat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #9ca3af;
+  cursor: pointer;
+  user-select: none;
+}
+
+.strat-toggle input[type="checkbox"] {
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+.strat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.strat-label {
+  font-size: 11px;
+  color: #6b7280;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.strat-input {
+  flex: 1;
+  background: #2d2d2d;
+  border: 1px solid #3d3d3d;
+  color: #f9fafb;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  outline: none;
+  min-width: 0;
+}
+
+.strat-input:focus { border-color: #3b82f6; }
+.strat-input-sm { max-width: 60px; flex: none; }
+
+.strat-unit { font-size: 11px; color: #6b7280; }
+
+.strat-divider {
+  border: none;
+  border-top: 1px solid #2d2d2d;
+  margin: 2px 0;
+}
+
+.strat-hint {
+  font-size: 11px;
+  color: #4b5563;
+  padding: 8px 0;
+}
+
+/* ── 시뮬레이션 결과 ── */
+.strat-result { display: flex; flex-direction: column; gap: 6px; }
+
+.strat-strategy-desc {
+  background: #1a1f2e;
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.strat-desc-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #9ca3af;
+}
+
+.desc-key {
+  color: #6b7280;
+  width: 32px;
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
+.desc-val { color: #d1d5db; flex: 1; }
+.desc-ratio { color: #60a5fa; font-size: 10px; flex-shrink: 0; }
+.desc-sl { color: #ef4444; flex: 1; }
+.desc-target { color: #2ecc71; flex: 1; }
+.desc-rr { color: #60a5fa; font-size: 10px; flex-shrink: 0; }
+
+.strat-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #d1d5db;
+  background: #1f1f1f;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.strat-summary .loss-pct { color: #ef4444; font-weight: 600; }
+
+.strat-entries { display: flex; flex-direction: column; gap: 3px; }
+
+.strat-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.entry-nth   { color: #6b7280; width: 22px; flex-shrink: 0; }
+.entry-price { color: #f9fafb; font-weight: 600; flex-shrink: 0; }
+.entry-drop  { font-size: 10px; flex-shrink: 0; }
+.entry-drop.up   { color: #ef4444; }
+.entry-drop.down { color: #3b82f6; }
+.entry-qty  { color: #9ca3af; font-size: 10px; flex-shrink: 0; margin-left: auto; }
+.entry-amt  { color: #6b7280; font-size: 10px; text-align: right; flex-shrink: 0; }
+
+.strat-sl-row { margin-top: 4px; }
+.strat-sl-row .entry-nth,
+.strat-sl-row .entry-price,
+.strat-sl-row .entry-drop { color: #ef4444; }
+
+.strat-target-row .entry-nth,
+.strat-target-row .entry-price,
+.strat-target-row .entry-drop { color: #2ecc71; }
+
+.entry-rr {
+  color: #60a5fa;
+  font-size: 10px;
+  margin-left: auto;
+}
+
+.journal-add-btn {
+  width: 100%;
+  background: #1e3a5f;
+  border: none;
+  color: #60a5fa;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.journal-add-btn:hover { background: #2a4f7f; }
+
+.journal-direct-btn {
+  width: 100%;
+  background: #1f2937;
+  border: 1px solid #374151;
+  color: #9ca3af;
+  padding: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.journal-direct-btn:hover { background: #2d3747; color: #d1d5db; }
+
+/* ── 보조지표 ── */
+.indicators {
+  background: #0d1f12;
+  border: 1px solid #1a3d22;
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ind-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.ind-key {
+  color: #6b7280;
+  flex-shrink: 0;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+
+.ind-val { color: #d1d5db; }
+
+.ind-align {
+  color: #9ca3af;
+  flex-shrink: 0;
+  min-width: 0;
+  margin-right: 2px;
+}
+
+.ind-chain    { font-size: 10px; display: flex; align-items: center; flex-wrap: nowrap; overflow: hidden; }
+.ind-sep      { color: #4b5563; }
+.ind-current  { color: #f9fafb; font-weight: 600; }
+.ind-ma-above { color: #ef4444; }
+.ind-ma-below { color: #3b82f6; }
+.ind-ma-pct   { font-size: 10px; }

@@ -115,29 +115,44 @@ def render_chart(df_ohlcv, mid_term_params, short_term_params, calc_res, rr_targ
         show_lines_short = short_term_params["show_lines"]
         if show_lines_short:
             resist_price = short_term_params["resist_price"]
-            support_price = short_term_params.get("support_price", 0)
-            e1_pct = short_term_params.get("entry1_pct", 2.0)
-            e2_pct = short_term_params.get("entry2_pct", 1.0)
             sl_pct = short_term_params.get("hard_sl_pct", 4.0)
+            missed = short_term_params.get("missed", False)
+            support_price = short_term_params.get("support_price", 0.0)
 
-            add_line(resist_price, "#FFFFFF", 0, "저항")
-            add_line(resist_price * (1 + e1_pct / 100), "#FFFF00", 2, f"1차(+{e1_pct:.1f}%)")
-            if support_price > 0:
-                add_line(support_price, "#FFFFFF", 0, "지지")
-                add_line(support_price * (1 + e2_pct / 100), "#FFFF00", 2, f"2차(+{e2_pct:.1f}%)")
-                sl_line = support_price * (1 - sl_pct / 100)
-            else:
+            if not missed:
                 sl_line = resist_price * (1 - sl_pct / 100)
+                add_line(resist_price, "#FFFFFF", 0, "저항")
+                add_line(resist_price * 1.02, "#FFFF00", 2, "1차(+2%)")
+                add_line(resist_price * 0.98, "#FFFF00", 2, "2차(-2%)")
 
-            if st_avg_price > 0:
-                add_line(st_avg_price, "#FF9800", 0, "평단", width=2)
-                add_line(sl_line, "#FF3131", 0, f"-{sl_pct:.0f}%손절")
+                if st_avg_price > 0:
+                    add_line(st_avg_price, "#FF9800", 0, "평단", width=2)
+                    add_line(sl_line, "#FF3131", 0, f"-{sl_pct:.0f}%손절")
+                    target = short_term_params.get("target_price", 0.0)
+                    if target > 0:
+                        add_line(target, "#2ECC71", 0, "목표가")
+            else:
+                if support_price > 0 and resist_price > support_price:
+                    # zone 모드: 저항선~지지선 구간 3등분
+                    rng = resist_price - support_price
+                    add_line(resist_price, "#FFFFFF", 0, "저항")
+                    add_line(support_price, "#808080", 0, "지지")
+                    add_line(resist_price - rng / 3,     "#FFFF00", 2, "1차(1/3)")
+                    add_line(resist_price - rng * 2 / 3, "#FFFF00", 2, "2차(2/3)")
+                    add_line(support_price,               "#FFFF00", 2, "3차(지지)")
+                else:
+                    # pullback 모드: 저항선 기준 +4/+1/-2%
+                    add_line(resist_price, "#FFFFFF", 0, "저항")
+                    add_line(resist_price * 1.04, "#FFFF00", 2, "1차(+4%)")
+                    add_line(resist_price * 1.01, "#FFFF00", 2, "2차(+1%)")
+                    add_line(resist_price * 0.98, "#FFFF00", 2, "3차(-2%)")
 
-                st_risk = st_avg_price - sl_line
-                if st_risk > 0:
-                    for rr_val in short_term_params["rr_targets"]:
-                        rr_price = st_avg_price + (st_risk * rr_val)
-                        add_line(rr_price, "#2ECC71", 0, f"{rr_val}배")
+                if st_avg_price > 0 and st_hard_sl > 0:
+                    add_line(st_avg_price, "#FF9800", 0, "평단", width=2)
+                    add_line(st_hard_sl, "#FF3131", 0, "손절")
+                    target = short_term_params.get("target_price", 0.0)
+                    if target > 0:
+                        add_line(target, "#2ECC71", 0, "목표가")
 
         base_layout = {
             "background": {"type": "solid", "color": "#131722"},

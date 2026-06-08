@@ -1,0 +1,195 @@
+.chart-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chart-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.symbol-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f9fafb;
+}
+
+.symbol-code {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.chart-star-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  color: #6b7280;
+  transition: transform 0.1s;
+}
+
+.chart-star-btn:hover { transform: scale(1.2); }
+.chart-star-btn.starred { color: #f59e0b; }
+
+.current-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2ecc71;
+}
+
+.chart-loading {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #9ca3af;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-label input[type="checkbox"] {
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+.period-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.period-btn {
+  background: #2d2d2d;
+  border: none;
+  color: #9ca3af;
+  padding: 3px 9px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.period-btn.active {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.count-select {
+  background: #2d2d2d;
+  border: 1px solid #3d3d3d;
+  color: #9ca3af;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.chart-container {
+  width: 100%;
+  height: 100%;
+}
+
+.scenario-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.drag-handle {
+  position: absolute;
+  right: 0;
+  width: 70px;
+  height: 18px;
+  transform: translateY(-50%);
+  cursor: ns-resize;
+  background: transparent;
+  border: none;
+  user-select: none;
+  z-index: 20;
+}
+
+.rsi-container {
+  flex-shrink: 0;
+}
+
+.draw-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.draw-btn {
+  background: #2d2d2d;
+  border: none;
+  color: #9ca3af;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.draw-btn.active {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.draw-btn-clear { color: #ef4444; }
+.draw-btn-clear:hover { background: #3d1a1a; }
+
+.draw-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  cursor: crosshair;
+}
+
+.crosshair-add-btn {
+  position: absolute;
+  right: 65px;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  background: #2d2d2d;
+  border: 1px solid #4b5563;
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 25;
+  border-radius: 2px;
+  user-select: none;
+}
+
+.crosshair-add-btn:hover {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}

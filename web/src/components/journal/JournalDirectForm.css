@@ -1,0 +1,100 @@
+.jdf {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 12px;
+}
+
+.jdf-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2d2d2d;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.jdf-back {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.jdf-back:hover { background: #2d2d2d; color: #d1d5db; }
+
+.jdf-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #d1d5db;
+}
+
+.jdf-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.jdf-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jdf-label {
+  width: 40px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.jdf-input {
+  flex: 1;
+  background: #2d2d2d;
+  border: 1px solid #3d3d3d;
+  color: #f9fafb;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  outline: none;
+  min-width: 0;
+}
+
+.jdf-input:focus { border-color: #3b82f6; }
+
+.jdf-half { flex: 2; }
+.jdf-qty  { flex: 1; }
+
+.jdf-divider {
+  border: none;
+  border-top: 1px solid #2d2d2d;
+  margin: 2px 0;
+}
+
+.jdf-save-btn {
+  margin-top: 6px;
+  width: 100%;
+  background: #1e3a5f;
+  border: none;
+  color: #60a5fa;
+  padding: 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.jdf-save-btn:hover:not(:disabled) { background: #2a4f7f; }
+.jdf-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.jdf-error {
+  font-size: 11px;
+  color: #ef4444;
+  text-align: center;
+  margin-top: 4px;
+}

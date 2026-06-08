@@ -1,0 +1,237 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #111;
+  color: #e5e7eb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+
+/* ── 전체 레이아웃 ── */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── 헤더 ── */
+.app-header {
+  flex-shrink: 0;
+  height: 44px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2d2d2d;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+}
+
+.app-logo {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f9fafb;
+  letter-spacing: 0.5px;
+}
+
+/* ── 헤더 아래 본문 ── */
+.app-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── 사이드바 ── */
+.sidebar-wrap {
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.18s ease;
+  background: #1a1a1a;
+}
+
+.sidebar {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  border-right: 1px solid #2d2d2d;
+}
+
+/* ── 수직 분할선 ── */
+.divider-v {
+  width: 5px;
+  flex-shrink: 0;
+  background: #2d2d2d;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+  z-index: 10;
+}
+
+.divider-v:hover {
+  background: #3d3d3d;
+}
+
+/* ── 패널 토글 버튼 ── */
+.panel-toggle-btn {
+  position: absolute;
+  background: #2a2a2a;
+  border: 1px solid #3d3d3d;
+  color: #9ca3af;
+  font-size: 9px;
+  padding: 3px 2px;
+  border-radius: 3px;
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+  z-index: 1;
+}
+
+.panel-toggle-btn:hover {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* 상단 행: 차트 + 계산기 */
+.top-row {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chart-col {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.calc-col {
+  flex: none;
+  padding: 10px 12px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* ── 일지 헤더/분할선 ── */
+.journal-divider {
+  flex-shrink: 0;
+  height: 26px;
+  background: #1a1a1a;
+  border-top: 1px solid #2d2d2d;
+  border-bottom: 1px solid #2d2d2d;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 6px;
+  cursor: ns-resize;
+  user-select: none;
+}
+
+.journal-divider-label {
+  font-size: 12px;
+  color: #6b7280;
+  flex: 1;
+}
+
+.journal-divider .panel-toggle-btn {
+  position: static;
+  font-size: 9px;
+  padding: 2px 5px;
+}
+
+/* 하단 행: 매매일지 */
+.journal-row {
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: height 0.18s ease;
+}
+
+.journal-row > * {
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* 관심종목 스타일은 Watchlist.css 에서 관리 */
+
+/* ── 차트 (ChartView.css 에서 주요 스타일 관리) ── */
+.chart-container { width: 100%; }
+
+/* ── 종목 검색 ── */
+.stock-search { position: relative; }
+
+.search-input {
+  background: #2d2d2d;
+  border: 1px solid #3d3d3d;
+  color: #f9fafb;
+  padding: 4px 9px;
+  border-radius: 4px;
+  font-size: 13px;
+  width: 180px;
+  outline: none;
+}
+
+.search-input:focus { border-color: #3b82f6; }
+
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 200;
+  background: #1f1f1f;
+  border: 1px solid #3d3d3d;
+  border-radius: 4px;
+  list-style: none;
+  min-width: 230px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  margin-top: 2px;
+}
+
+.search-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 11px;
+  cursor: pointer;
+}
+
+.search-item:hover { background: #2d2d2d; }
+
+.search-name { color: #e5e7eb; font-size: 13px; }
+.search-code { color: #6b7280; font-size: 11px; }
+
+/* ── 계산기 placeholder ── */
+.calc-placeholder {
+  color: #4b5563;
+  font-size: 12px;
+  padding: 20px 0;
+  text-align: center;
+}
+
+/* ── 매매일지 placeholder ── */
+.journal-placeholder {
+  color: #4b5563;
+  font-size: 12px;
+  padding: 20px 0;
+  text-align: center;
+}
