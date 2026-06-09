@@ -125,7 +125,7 @@ function SummaryBar({ trades }: { trades: JournalTrade[] }) {
 interface EditCell { id: string; col: string; value: string }
 
 export function TradeJournal() {
-  const { setSymbol } = useAppStore()
+  const {} = useAppStore()
   const queryClient = useQueryClient()
   const [editCell, setEditCell] = useState<EditCell | null>(null)
 

@@ -7,6 +7,7 @@ import {
   LineSeries,
   LineStyle,
   type IChartApi,
+  type Logical,
 } from 'lightweight-charts'
 import { api } from '../../api/stock'
 import { useAppStore } from '../../store'
@@ -246,7 +247,7 @@ export function ChartView() {
       const lastLogical = dataLengthRef.current - 1
 
       const toXY = (barOffset: number, price: number) => ({
-        x: ts.logicalToCoordinate(lastLogical + barOffset) as number | null,
+        x: ts.logicalToCoordinate((lastLogical + barOffset) as unknown as Logical) as number | null,
         y: ser.candle.priceToCoordinate(price)             as number | null,
       })
 
@@ -369,9 +370,9 @@ export function ChartView() {
           line.barOffset1 != null && line.price1 != null &&
           line.barOffset2 != null && line.price2 != null
         ) {
-          const ux1 = ts.logicalToCoordinate(lastLogical + line.barOffset1) as number | null
+          const ux1 = ts.logicalToCoordinate((lastLogical + line.barOffset1) as unknown as Logical) as number | null
           const uy1 = ser.candle.priceToCoordinate(line.price1) as number | null
-          const ux2 = ts.logicalToCoordinate(lastLogical + line.barOffset2) as number | null
+          const ux2 = ts.logicalToCoordinate((lastLogical + line.barOffset2) as unknown as Logical) as number | null
           const uy2 = ser.candle.priceToCoordinate(line.price2) as number | null
           if (ux1 != null && uy1 != null && ux2 != null && uy2 != null) {
             ctx.lineWidth = 1.5
@@ -557,9 +558,9 @@ export function ChartView() {
       } else if (line.type === 'segment' && line.barOffset1 != null && line.price1 != null && line.barOffset2 != null && line.price2 != null) {
         const ts = main.timeScale()
         const ll = dataLengthRef.current - 1
-        const x1 = ts.logicalToCoordinate(ll + line.barOffset1) as number | null
+        const x1 = ts.logicalToCoordinate((ll + line.barOffset1) as unknown as Logical) as number | null
         const y1 = ser.candle.priceToCoordinate(line.price1) as number | null
-        const x2 = ts.logicalToCoordinate(ll + line.barOffset2) as number | null
+        const x2 = ts.logicalToCoordinate((ll + line.barOffset2) as unknown as Logical) as number | null
         const y2 = ser.candle.priceToCoordinate(line.price2) as number | null
         if (x1 != null && y1 != null && x2 != null && y2 != null && distToSegment(cx, cy, x1, y1, x2, y2) < THRESH) {
           removeDrawnLine(symbolRef.current, line.id); return

@@ -63,6 +63,7 @@ export interface ScenarioData {
   supportPrice?: number
   targetPrice: number
   stopLoss: number
+  avgPrice: number
 }
 
 export interface JournalTrade {

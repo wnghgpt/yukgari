@@ -23,7 +23,7 @@ const TAB_PATTERN: Record<string, (missed: boolean) => string> = {
 
 export function Calculator() {
   const [activeTab, setActiveTab] = useState('cup')
-  const { symbol, symbolName, totalAsset, riskPct, setTotalAsset, setRiskPct, livePrices } = useAppStore()
+  const { symbol, totalAsset, riskPct, setTotalAsset, setRiskPct, livePrices } = useAppStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [suggestedPattern, setSuggestedPattern] = useState('손잡이컵')
   const pendingPayload = useRef<JournalPayload | null>(null)

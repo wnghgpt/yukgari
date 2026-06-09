@@ -23,6 +23,7 @@ function buildScenario(
     supportPrice: isZone ? supportPrice : undefined,
     targetPrice: target,
     stopLoss: result.stopLoss,
+    avgPrice: result.avgPrice,
   }
 
   if (!isZone && !missed) {

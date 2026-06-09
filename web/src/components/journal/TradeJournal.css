@@ -47,6 +47,7 @@
 /* ── 테이블 ── */
 .journal-table-wrap {
   overflow-x: auto;
+  overflow-y: auto;
 }
 
 .journal-table {
@@ -62,6 +63,10 @@
   padding: 4px 8px;
   border-bottom: 1px solid #2d2d2d;
   text-align: left;
+  position: sticky;
+  top: 0;
+  background: #131722;
+  z-index: 1;
 }
 
 .journal-row {
