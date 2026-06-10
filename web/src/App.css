@@ -84,7 +84,7 @@ body {
   background: #2a2a2a;
   border: 1px solid #3d3d3d;
   color: #9ca3af;
-  font-size: 9px;
+  font-size: 12px;
   padding: 3px 2px;
   border-radius: 3px;
   cursor: pointer;
@@ -97,6 +97,22 @@ body {
   background: #3b82f6;
   color: #fff;
   border-color: #3b82f6;
+}
+
+/* 계산기 분할선 — overflow visible + 버튼 inline */
+.divider-v-calc {
+  overflow: visible;
+}
+
+.panel-toggle-inline {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 28px;
+  padding: 0;
+  font-size: 14px;
 }
 
 .content {
@@ -129,6 +145,7 @@ body {
   padding: 10px 12px;
   overflow-y: auto;
   min-width: 0;
+  transition: width 0.18s ease;
 }
 
 /* ── 일지 헤더/분할선 ── */
