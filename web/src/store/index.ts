@@ -24,6 +24,9 @@ interface AppState {
   // live prices (websocket)
   livePrices: Record<string, number>
 
+  // previous close prices (for 등락률)
+  prevCloses: Record<string, number>
+
   // actions
   setSymbol: (symbol: string, name?: string) => void
   setPeriod: (period: Period) => void
@@ -35,6 +38,7 @@ interface AppState {
   removeDrawnLine: (symbol: string, id: string) => void
   clearDrawnLines: (symbol: string) => void
   setLivePrice: (symbol: string, price: number) => void
+  setPrevClose: (symbol: string, price: number) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -49,6 +53,7 @@ export const useAppStore = create<AppState>()(
       scenarioDrag: null,
       drawnLines: {},
       livePrices: {},
+      prevCloses: {},
 
       setSymbol: (symbol, name) => set({ symbol, symbolName: name ?? symbol }),
       setPeriod: (period) => set({ period }),
@@ -64,6 +69,8 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ drawnLines: { ...s.drawnLines, [symbol]: [] } })),
       setLivePrice: (symbol, price) =>
         set((s) => ({ livePrices: { ...s.livePrices, [symbol]: price } })),
+      setPrevClose: (symbol, price) =>
+        set((s) => ({ prevCloses: { ...s.prevCloses, [symbol]: price } })),
     }),
     {
       name: 'stocks-app',

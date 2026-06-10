@@ -17,7 +17,7 @@ export const api = {
     get<StockInfo>('/stock-info', { q }),
 
   price: (symbol: string) =>
-    get<{ symbol: string; price: number | null }>('/price', { symbol }),
+    get<{ symbol: string; price: number | null; prev_close: number | null }>('/price', { symbol }),
 
   search: (q: string) =>
     get<StockInfo[]>('/search', { q }),

@@ -91,7 +91,8 @@ export function ChartView() {
   const s = useRef<SeriesStore | null>(null)
 
   const { symbol, symbolName, period, setPeriod, scenario, setScenarioDrag,
-          drawnLines, addDrawnLine, removeDrawnLine, clearDrawnLines } = useAppStore()
+          drawnLines, addDrawnLine, removeDrawnLine, clearDrawnLines,
+          livePrices, prevCloses, setPrevClose } = useAppStore()
   const scenarioRef       = useRef(scenario)
   const dataLengthRef     = useRef(0)
   const drawFnRef         = useRef<() => void>(() => {})
@@ -602,7 +603,11 @@ export function ChartView() {
     rsi30.setData(times.map(t => ({ time: t, value: 30 })))
 
     chartRef.current.main?.timeScale().fitContent()
-  }, [data])
+
+    if (data.length >= 2) {
+      setPrevClose(symbol, data.at(-2)!.Close)
+    }
+  }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── MA toggle ──
   useEffect(() => {
@@ -670,11 +675,17 @@ export function ChartView() {
   }
   const isStarred = isInWatchlist(symbol)
 
-  const priceLabel = data?.length
-    ? (isOverseas
-        ? `$${data.at(-1)!.Close.toFixed(2)}`
-        : `${data.at(-1)!.Close.toLocaleString()}원`)
+  const livePrice    = livePrices[symbol]
+  const displayPrice = livePrice ?? data?.at(-1)?.Close
+  const prevClose    = prevCloses[symbol]
+
+  const priceLabel = displayPrice != null
+    ? (isOverseas ? `$${displayPrice.toFixed(2)}` : `${displayPrice.toLocaleString()}원`)
     : ''
+
+  const changePct = displayPrice != null && prevClose != null && prevClose > 0
+    ? ((displayPrice - prevClose) / prevClose) * 100
+    : null
 
   return (
     <div className="chart-view">
@@ -691,7 +702,16 @@ export function ChartView() {
         >
           {isStarred ? '⭐' : '☆'}
         </button>
-        {priceLabel && <span className="current-price">{priceLabel}</span>}
+        {priceLabel && (
+          <span className="current-price-wrap">
+            <span className="current-price">{priceLabel}</span>
+            {changePct != null && (
+              <span className={`current-change ${changePct >= 0 ? 'up' : 'down'}`}>
+                {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%
+              </span>
+            )}
+          </span>
+        )}
         {isLoading && <span className="chart-loading">로딩 중...</span>}
 
         <div className="toolbar-right">

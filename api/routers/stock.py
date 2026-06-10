@@ -26,7 +26,14 @@ def get_stock_info(q: str):
 @router.get("/price")
 def get_price(symbol: str):
     price = StockDataLoader.get_current_price(symbol)
-    return {"symbol": symbol, "price": price}
+    prev_close = None
+    try:
+        df = StockDataLoader.get_ohlcv(symbol, count=2)
+        if df is not None and len(df) >= 2:
+            prev_close = float(df.iloc[-2]["Close"])
+    except Exception:
+        pass
+    return {"symbol": symbol, "price": price, "prev_close": prev_close}
 
 
 @router.get("/search")

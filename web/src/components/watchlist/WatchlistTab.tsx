@@ -23,13 +23,20 @@ export function WatchlistTab({ currentSymbol }: Props) {
   const [filter, setFilter] = useState<MarketFilter>('all')
   const wrapRef = useRef<HTMLDivElement>(null)
 
-  const { setSymbol, livePrices, setLivePrice } = useAppStore()
+  const { setSymbol, livePrices, setLivePrice, prevCloses, setPrevClose } = useAppStore()
   const { watchlist, isInWatchlist, toggle } = useWatchlist()
 
   const { subscribe } = usePriceSocket((sym, price) => setLivePrice(sym, price))
   useEffect(() => {
-    watchlist.forEach(item => subscribe(item.symbol))
-  }, [watchlist, subscribe])
+    watchlist.forEach(item => {
+      subscribe(item.symbol)
+      if (prevCloses[item.symbol] == null) {
+        api.price(item.symbol).then(r => {
+          if (r.prev_close != null) setPrevClose(item.symbol, r.prev_close)
+        }).catch(() => {})
+      }
+    })
+  }, [watchlist, subscribe]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: searchResults = [] } = useQuery({
     queryKey: ['search', query],
@@ -120,7 +127,11 @@ export function WatchlistTab({ currentSymbol }: Props) {
           </div>
         )}
         {filtered.map(item => {
-          const price = livePrices[item.symbol] ?? item.price
+          const price     = livePrices[item.symbol] ?? item.price
+          const prevClose = prevCloses[item.symbol]
+          const changePct = price != null && prevClose != null && prevClose > 0
+            ? ((price - prevClose) / prevClose) * 100
+            : null
           return (
             <div
               key={item.symbol}
@@ -133,7 +144,14 @@ export function WatchlistTab({ currentSymbol }: Props) {
                 <span className="wl-item-code">{item.symbol}</span>
               </div>
               <div className="wl-item-right">
-                <span className="wl-item-price">{formatPrice(item.symbol, price)}</span>
+                <div className="wl-price-col">
+                  <span className="wl-item-price">{formatPrice(item.symbol, price)}</span>
+                  {changePct != null && (
+                    <span className={`wl-change ${changePct >= 0 ? 'up' : 'down'}`}>
+                      {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
                 <button
                   className="wl-star-btn starred"
                   onClick={e => { e.stopPropagation(); toggle(item.symbol, item.name) }}
