@@ -51,7 +51,7 @@ class KISWebSocket:
             },
             "body": {
                 "input": {
-                    "tr_id": "H0STCNT0",  # 실시간 체결가
+                    "tr_id": "H0UNCNT0",  # 통합 실시간 체결가 (KRX+NXT)
                     "tr_key": symbol
                 }
             }
@@ -78,7 +78,7 @@ class KISWebSocket:
                     
                 # 파이프(|) 구분 데이터 파싱
                 parts = message.split("|")
-                if len(parts) >= 4 and parts[1] == "H0STCNT0":
+                if len(parts) >= 4 and parts[1] in ("H0STCNT0", "H0UNCNT0"):
                     # parts[0]: 암호화 유무, parts[1]: TR_ID, parts[2]: 건수, parts[3]: 데이터
                     data_str = parts[3]
                     data_fields = data_str.split("^")
