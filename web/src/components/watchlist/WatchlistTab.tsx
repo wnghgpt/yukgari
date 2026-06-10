@@ -20,7 +20,7 @@ interface Props {
 export function WatchlistTab({ currentSymbol }: Props) {
   const [query, setQuery] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [filter, setFilter] = useState<MarketFilter>('all')
+  const [filter, setFilter] = useState<MarketFilter>('KR')
   const wrapRef = useRef<HTMLDivElement>(null)
 
   const { setSymbol, livePrices, setLivePrice, prevCloses, setPrevClose } = useAppStore()
