@@ -30,9 +30,10 @@ export function WatchlistTab({ currentSymbol }: Props) {
   useEffect(() => {
     watchlist.forEach(item => {
       subscribe(item.symbol)
-      if (prevCloses[item.symbol] == null) {
+      if (prevCloses[item.symbol] == null || livePrices[item.symbol] == null) {
         api.price(item.symbol).then(r => {
           if (r.prev_close != null) setPrevClose(item.symbol, r.prev_close)
+          if (r.price != null) setLivePrice(item.symbol, r.price)
         }).catch(() => {})
       }
     })

@@ -46,9 +46,9 @@ export function Watchlist() {
       </div>
 
       <div className="wl-content">
-        {activeTab === 'watchlist' && (
+        <div style={{ display: activeTab === 'watchlist' ? 'block' : 'none' }}>
           <WatchlistTab currentSymbol={currentSymbol} />
-        )}
+        </div>
         {activeTab === 'marcap' && (
           <RankingTab data={marcapData} loading={marcapLoading} valueHeader="시총" />
         )}
