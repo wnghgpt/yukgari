@@ -48,6 +48,9 @@ async def create_journal(body: JournalCreateRequest):
             trade = data[0] if isinstance(data, list) else data
             alert_monitor.register_alert(trade)
             asyncio.create_task(backend_subscribe(body.ticker))
+            if body.result == "감시":
+                from api.services.telegram import format_watch_alert, send_message
+                asyncio.create_task(send_message(format_watch_alert(trade)))
         except Exception as e:
             print(f"[Alert] 등록 오류: {e}")
     return data

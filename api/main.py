@@ -12,6 +12,28 @@ from api.routers.journal import router as journal_router
 from api.ws.price import router as ws_router
 
 
+async def _daily_summary_loop():
+    """매일 KST 08:00, 14:00 에 감시 요약 텔레그램 전송"""
+    from datetime import datetime, timezone, timedelta
+    KST = timezone(timedelta(hours=9))
+    TARGET_HOURS = (8, 14)
+    while True:
+        now = datetime.now(KST)
+        next_fires = []
+        for h in TARGET_HOURS:
+            t = now.replace(hour=h, minute=0, second=0, microsecond=0)
+            if t <= now:
+                t += timedelta(days=1)
+            next_fires.append(t)
+        wait = (min(next_fires) - now).total_seconds()
+        await asyncio.sleep(wait)
+        try:
+            from api.services.telegram import send_daily_summary
+            await send_daily_summary()
+        except Exception as e:
+            print(f"[Telegram] 정기 요약 오류: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 서버 시작 시 기존 감시 종목 로드 + KIS WebSocket 구독
@@ -27,6 +49,7 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(backend_subscribe(sym))
     except Exception as e:
         print(f"[Alert] 시작 로드 오류: {e}")
+    asyncio.create_task(_daily_summary_loop())
     yield
 
 
