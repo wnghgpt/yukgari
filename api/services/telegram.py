@@ -64,6 +64,7 @@ def _calc_loss_pct(trade: dict) -> float | None:
 
 def format_watch_alert(trade: dict) -> str:
     ticker = trade.get("ticker", "")
+    name = trade.get("name") or ticker
     pattern = trade.get("pattern", "")
     stages = trade.get("stages", 0)
     stop_loss = trade.get("stop_loss")
@@ -87,7 +88,7 @@ def format_watch_alert(trade: dict) -> str:
     lines = [
         "📋 감시 종목 추가",
         div,
-        f"📌 <b>{ticker}</b>",
+        f"📌 <b>{name}</b> ({ticker})",
         f"📊 패턴: {pattern} | {stages}단계",
         div,
         *entry_lines,

@@ -299,36 +299,18 @@ export function ChartView() {
           ctx.restore()
         }
 
-        // 평단 수평선 (현재 바 ~ 오른쪽 끝)
+        // 평단 수평선 (현재 바 ~ 오른쪽 끝, 가격 태그 없음)
         if (sc.avgPrice > 0) {
           const originPt = toXY(0, sc.avgPrice)
           if (originPt.x != null && originPt.y != null) {
-            const avgColor = '#FF9800'
-            const TAG_W = 52, TAG_H = 16
-            const lineEndX = canvas.width - TAG_W
             ctx.save()
-            ctx.strokeStyle = avgColor
+            ctx.strokeStyle = '#FF9800'
             ctx.lineWidth = 1.5
             ctx.setLineDash([5, 3])
             ctx.beginPath()
             ctx.moveTo(originPt.x, originPt.y)
-            ctx.lineTo(lineEndX, originPt.y)
+            ctx.lineTo(canvas.width, originPt.y)
             ctx.stroke()
-            ctx.setLineDash([])
-            const tagX = lineEndX
-            const tagY = originPt.y - TAG_H / 2
-            ctx.fillStyle = avgColor
-            ctx.beginPath()
-            ctx.roundRect(tagX, tagY, TAG_W, TAG_H, 3)
-            ctx.fill()
-            const avgLabel = isOverseasRef.current
-              ? sc.avgPrice.toFixed(2)
-              : sc.avgPrice.toLocaleString()
-            ctx.fillStyle = '#000'
-            ctx.font = 'bold 10px sans-serif'
-            ctx.textAlign = 'center'
-            ctx.textBaseline = 'middle'
-            ctx.fillText(avgLabel, tagX + TAG_W / 2, originPt.y, TAG_W - 4)
             ctx.restore()
           }
         }
@@ -343,19 +325,13 @@ export function ChartView() {
           const uy = ser.candle.priceToCoordinate(line.price) as number | null
           if (uy != null) {
             const TAG_W = 56, TAG_H = 16
-            ctx.lineWidth = 1
-            ctx.setLineDash([5, 3])
-            ctx.beginPath()
-            ctx.moveTo(0, uy)
-            ctx.lineTo(canvas.width - TAG_W, uy)
-            ctx.stroke()
-            ctx.setLineDash([])
             const label = isOverseasRef.current
               ? line.price.toFixed(2)
               : Math.round(line.price).toLocaleString()
+            // 태그: 왼쪽 끝
             ctx.fillStyle = '#1a1a1a'
             ctx.beginPath()
-            ctx.roundRect(canvas.width - TAG_W, uy - TAG_H / 2, TAG_W, TAG_H, 3)
+            ctx.roundRect(0, uy - TAG_H / 2, TAG_W, TAG_H, 3)
             ctx.fill()
             ctx.strokeStyle = line.color
             ctx.lineWidth = 1
@@ -364,7 +340,14 @@ export function ChartView() {
             ctx.font = 'bold 10px sans-serif'
             ctx.textAlign = 'center'
             ctx.textBaseline = 'middle'
-            ctx.fillText(label, canvas.width - TAG_W / 2, uy, TAG_W - 4)
+            ctx.fillText(label, TAG_W / 2, uy, TAG_W - 4)
+            // 선: 태그 오른쪽 끝 ~ 캔버스 오른쪽 끝
+            ctx.setLineDash([5, 3])
+            ctx.beginPath()
+            ctx.moveTo(TAG_W, uy)
+            ctx.lineTo(canvas.width, uy)
+            ctx.stroke()
+            ctx.setLineDash([])
           }
         } else if (
           line.type === 'segment' &&

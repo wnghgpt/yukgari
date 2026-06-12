@@ -11,6 +11,7 @@ router = APIRouter()
 
 class JournalCreateRequest(BaseModel):
     ticker: str
+    name: Optional[str] = None
     pattern: str
     date: str
     stages: int
@@ -37,7 +38,8 @@ def fetch_journal():
 
 @router.post("/journal")
 async def create_journal(body: JournalCreateRequest):
-    data, err = await asyncio.to_thread(SupabaseDB.insert_trade, body.model_dump())
+    insert_data = {k: v for k, v in body.model_dump().items() if k != 'name'}
+    data, err = await asyncio.to_thread(SupabaseDB.insert_trade, insert_data)
     if err:
         raise HTTPException(status_code=500, detail=err)
     # 감시/보유 상태면 알림 등록 + KIS 구독
@@ -50,7 +52,8 @@ async def create_journal(body: JournalCreateRequest):
             asyncio.create_task(backend_subscribe(body.ticker))
             if body.result == "감시":
                 from api.services.telegram import format_watch_alert, send_message
-                asyncio.create_task(send_message(format_watch_alert(trade)))
+                alert_trade = {**trade, 'name': body.name or body.ticker}
+                asyncio.create_task(send_message(format_watch_alert(alert_trade)))
         except Exception as e:
             print(f"[Alert] 등록 오류: {e}")
     return data
