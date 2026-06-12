@@ -110,6 +110,7 @@ export function ChartView() {
   const drawTempRef       = useRef<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
   const crosshairBtnRef   = useRef<HTMLDivElement>(null)
   const crosshairPriceRef = useRef<number | null>(null)
+  const displayPriceRef   = useRef<number | null>(null)
 
   const [count, setCount] = useState(900)
   const [showRsi, setShowRsi] = useState(true)
@@ -167,6 +168,8 @@ export function ChartView() {
       borderDownColor: '#2196F3',
       wickUpColor: '#ef5350',
       wickDownColor: '#2196F3',
+      lastValueVisible: false,
+      priceLineVisible: false,
     })
 
     // Volume (overlay, bottom 20%)
@@ -369,6 +372,32 @@ export function ChartView() {
         ctx.restore()
       }
 
+      // 현재가 Y축 태그 (LW 내장 태그 대신 캔버스에 직접 그려 충돌 회피 없음)
+      const curPrice = displayPriceRef.current
+      if (curPrice != null) {
+        const cy = ser.candle.priceToCoordinate(curPrice) as number | null
+        if (cy != null) {
+          const TAG_W = 60, TAG_H = 16
+          const label = isOverseasRef.current
+            ? curPrice.toFixed(2)
+            : Math.round(curPrice).toLocaleString()
+          ctx.save()
+          ctx.fillStyle = '#1f2937'
+          ctx.beginPath()
+          ctx.roundRect(canvas.width - TAG_W, cy - TAG_H / 2, TAG_W, TAG_H, 3)
+          ctx.fill()
+          ctx.strokeStyle = '#9ca3af'
+          ctx.lineWidth = 1
+          ctx.stroke()
+          ctx.fillStyle = '#e5e7eb'
+          ctx.font = 'bold 10px sans-serif'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(label, canvas.width - TAG_W / 2, cy, TAG_W - 4)
+          ctx.restore()
+        }
+      }
+
       // 임시 선분 (그리는 중)
       const temp = drawTempRef.current
       if (temp) {
@@ -450,6 +479,7 @@ export function ChartView() {
   useEffect(() => { isOverseasRef.current = !/^\d+$/.test(symbol) }, [symbol])
   useEffect(() => { symbolRef.current = symbol }, [symbol])
   useEffect(() => { drawnLinesRef.current = drawnLines; drawFnRef.current() }, [drawnLines])
+  useEffect(() => { drawFnRef.current() }, [displayPrice])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawingMode('none') }
     document.addEventListener('keydown', onKey)
@@ -661,6 +691,7 @@ export function ChartView() {
   const livePrice    = livePrices[symbol]
   const displayPrice = livePrice ?? data?.at(-1)?.Close
   const prevClose    = prevCloses[symbol]
+  displayPriceRef.current = displayPrice ?? null
 
   const priceLabel = displayPrice != null
     ? (isOverseas ? `$${displayPrice.toFixed(2)}` : `${displayPrice.toLocaleString()}원`)
