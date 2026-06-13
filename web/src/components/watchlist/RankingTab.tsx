@@ -12,7 +12,7 @@ interface PriceInfo {
 interface Props {
   data: RankingItem[]
   loading: boolean
-  valueHeader: string
+  valueHeader?: string
   market: 'KR' | 'US'
 }
 
@@ -55,8 +55,8 @@ export function RankingTab({ data, loading, valueHeader, market }: Props) {
     return prices[symbol] ?? { price: null, prevClose: null }
   }
 
-  const fmtPrice = (symbol: string, price: number) =>
-    market === 'US' ? `$${price.toFixed(2)}` : price.toLocaleString()
+  const fmtPrice = (sym: string, price: number) =>
+    market === 'US' || !/^\d+$/.test(sym) ? `$${price.toFixed(2)}` : price.toLocaleString()
 
   if (loading && data.length === 0) {
     return <div className="wl-loading">불러오는 중...</div>
