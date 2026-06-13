@@ -28,6 +28,12 @@ export const api = {
   rankingTrading: () =>
     get<RankingItem[]>('/ranking/trading'),
 
+  rankingUsMarcap: () =>
+    get<RankingItem[]>('/ranking/us-marcap'),
+
+  rankingUsTrading: () =>
+    get<RankingItem[]>('/ranking/us-trading'),
+
   watchlist: () =>
     get<WatchlistItem[]>('/watchlist'),
 
