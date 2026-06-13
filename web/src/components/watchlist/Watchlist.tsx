@@ -56,8 +56,6 @@ export function Watchlist() {
     ? (market === 'KR' ? marcapKrLoading : marcapUsLoading)
     : (market === 'KR' ? tradingKrLoading : tradingUsLoading)
 
-  const valueHeader = activeTab === 'marcap' ? '시총' : '거래대금'
-
   return (
     <div className="watchlist-panel">
       <div className="wl-tabs">
@@ -98,7 +96,6 @@ export function Watchlist() {
           <RankingTab
             data={rankingData}
             loading={rankingLoading}
-            valueHeader={valueHeader}
             market={market}
           />
         )}

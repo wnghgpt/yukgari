@@ -1,7 +1,22 @@
 from fastapi import APIRouter, HTTPException
-from functools import lru_cache
 from datetime import datetime, date
+import time as _time
 from data_loader import StockDataLoader
+
+_rank_cache: dict = {}
+_RANK_TTL = 1800  # 30분
+
+
+def _cached_rank(key: str, fetch_fn):
+    entry = _rank_cache.get(key)
+    if entry:
+        data, ts = entry
+        if _time.time() - ts < _RANK_TTL:
+            return data
+    data = fetch_fn()
+    if data:
+        _rank_cache[key] = (data, _time.time())
+    return data or []
 
 router = APIRouter()
 
@@ -141,118 +156,25 @@ def get_indicators(symbol: str):
 
 # ── ranking ────────────────────────────────────────────────────────
 
-def _today() -> str:
-    return date.today().isoformat()
-
-def _current_hour() -> str:
-    return datetime.now().strftime("%Y-%m-%d-%H")
-
-
-@lru_cache(maxsize=4)
-def _krx_listing_cached(hour: str):
-    """FDR StockListing — 1시간 단위 캐시 (Marcap + Amount 모두 포함)"""
-    import FinanceDataReader as fdr
-    df = fdr.StockListing("KRX")
-    if df is None or df.empty:
-        return None
-    return df
-
-
-def _fmt_krw(v: float) -> str:
-    v = int(v)
-    if v >= 1_000_000_000_000:
-        return f"{v / 1_000_000_000_000:.1f}조"
-    if v >= 100_000_000:
-        return f"{v / 100_000_000:.0f}억"
-    return f"{v:,}"
-
-
-def _build_ranking(sort_col: str, label_col: str, hour: str):
-    df = _krx_listing_cached(hour)
-    if df is None:
-        return []
-    df = df.dropna(subset=[sort_col])
-    df = df[df[sort_col] > 0]
-    df = df.sort_values(sort_col, ascending=False).head(100).reset_index(drop=True)
-
-    result = []
-    for i, row in df.iterrows():
-        val = float(row[sort_col])
-        result.append({
-            "rank": int(i) + 1,
-            "symbol": str(row["Code"]),
-            "name": str(row["Name"]),
-            "value": val,
-            "value_label": _fmt_krw(val),
-        })
-    return result
-
-
 @router.get("/ranking/marcap")
 def ranking_marcap():
-    return _build_ranking("Marcap", "Marcap", _current_hour())
+    from api.services.kis import fetch_domestic_marcap
+    return _cached_rank("dom_marcap", fetch_domestic_marcap)
 
 
 @router.get("/ranking/trading")
 def ranking_trading():
-    return _build_ranking("Amount", "Amount", _current_hour())
-
-
-# ── 해외 랭킹 ─────────────────────────────────────────────────────────
-
-@lru_cache(maxsize=4)
-def _nasdaq_listing_cached(hour: str):
-    import FinanceDataReader as fdr
-    df = fdr.StockListing("NASDAQ")
-    if df is None or df.empty:
-        return None
-    return df
-
-
-def _fmt_usd(v: float) -> str:
-    if v >= 1_000_000_000_000:
-        return f"${v / 1_000_000_000_000:.1f}T"
-    if v >= 1_000_000_000:
-        return f"${v / 1_000_000_000:.1f}B"
-    if v >= 1_000_000:
-        return f"${v / 1_000_000:.0f}M"
-    return f"${v:,.0f}"
-
-
-def _build_us_ranking(sort_col: str, hour: str):
-    df = _nasdaq_listing_cached(hour)
-    if df is None:
-        return []
-    col_map = {c.lower(): c for c in df.columns}
-    actual_col = col_map.get(sort_col.lower())
-    if not actual_col:
-        return []
-    df = df.dropna(subset=[actual_col])
-    df[actual_col] = df[actual_col].apply(
-        lambda x: float(str(x).replace("$", "").replace(",", "")) if isinstance(x, str) else float(x)
-    )
-    df = df[df[actual_col] > 0]
-    df = df.sort_values(actual_col, ascending=False).head(100).reset_index(drop=True)
-    result = []
-    for i, row in df.iterrows():
-        val = float(row[actual_col])
-        sym = str(row.get("Symbol", row.get("symbol", "")))
-        name = str(row.get("Name", sym))
-        result.append({
-            "rank": int(i) + 1,
-            "symbol": sym,
-            "name": name,
-            "value": val,
-            "value_label": _fmt_usd(val),
-        })
-    return result
+    from api.services.kis import fetch_domestic_trading
+    return _cached_rank("dom_trading", fetch_domestic_trading)
 
 
 @router.get("/ranking/us-marcap")
 def ranking_us_marcap():
-    return _build_us_ranking("MarketCap", _current_hour())
+    from api.services.kis import fetch_overseas_marcap
+    return _cached_rank("us_marcap", fetch_overseas_marcap)
 
 
 @router.get("/ranking/us-trading")
 def ranking_us_trading():
-    return _build_us_ranking("Volume", _current_hour())
+    from api.services.kis import fetch_overseas_trading
+    return _cached_rank("us_trading", fetch_overseas_trading)
