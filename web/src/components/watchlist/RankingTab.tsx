@@ -12,11 +12,10 @@ interface PriceInfo {
 interface Props {
   data: RankingItem[]
   loading: boolean
-  valueHeader?: string
   market: 'KR' | 'US'
 }
 
-export function RankingTab({ data, loading, valueHeader, market }: Props) {
+export function RankingTab({ data, loading, market }: Props) {
   const { setSymbol, symbol: currentSymbol, livePrices, prevCloses } = useAppStore()
   const { isInWatchlist, toggle } = useWatchlist()
   const [prices, setPrices] = useState<Record<string, PriceInfo>>({})

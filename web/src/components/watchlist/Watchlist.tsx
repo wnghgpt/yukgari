@@ -98,7 +98,6 @@ export function Watchlist() {
           <RankingTab
             data={rankingData}
             loading={rankingLoading}
-            valueHeader={valueHeader}
             market={market}
           />
         )}
