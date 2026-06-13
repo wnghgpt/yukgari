@@ -196,3 +196,63 @@ def ranking_marcap():
 @router.get("/ranking/trading")
 def ranking_trading():
     return _build_ranking("Amount", "Amount", _current_hour())
+
+
+# ── 해외 랭킹 ─────────────────────────────────────────────────────────
+
+@lru_cache(maxsize=4)
+def _nasdaq_listing_cached(hour: str):
+    import FinanceDataReader as fdr
+    df = fdr.StockListing("NASDAQ")
+    if df is None or df.empty:
+        return None
+    return df
+
+
+def _fmt_usd(v: float) -> str:
+    if v >= 1_000_000_000_000:
+        return f"${v / 1_000_000_000_000:.1f}T"
+    if v >= 1_000_000_000:
+        return f"${v / 1_000_000_000:.1f}B"
+    if v >= 1_000_000:
+        return f"${v / 1_000_000:.0f}M"
+    return f"${v:,.0f}"
+
+
+def _build_us_ranking(sort_col: str, hour: str):
+    df = _nasdaq_listing_cached(hour)
+    if df is None:
+        return []
+    col_map = {c.lower(): c for c in df.columns}
+    actual_col = col_map.get(sort_col.lower())
+    if not actual_col:
+        return []
+    df = df.dropna(subset=[actual_col])
+    df[actual_col] = df[actual_col].apply(
+        lambda x: float(str(x).replace("$", "").replace(",", "")) if isinstance(x, str) else float(x)
+    )
+    df = df[df[actual_col] > 0]
+    df = df.sort_values(actual_col, ascending=False).head(100).reset_index(drop=True)
+    result = []
+    for i, row in df.iterrows():
+        val = float(row[actual_col])
+        sym = str(row.get("Symbol", row.get("symbol", "")))
+        name = str(row.get("Name", sym))
+        result.append({
+            "rank": int(i) + 1,
+            "symbol": sym,
+            "name": name,
+            "value": val,
+            "value_label": _fmt_usd(val),
+        })
+    return result
+
+
+@router.get("/ranking/us-marcap")
+def ranking_us_marcap():
+    return _build_us_ranking("MarketCap", _current_hour())
+
+
+@router.get("/ranking/us-trading")
+def ranking_us_trading():
+    return _build_us_ranking("Volume", _current_hour())

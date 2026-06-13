@@ -245,10 +245,11 @@
   gap: 4px;
 }
 
-.rh-rank { width: 18px; text-align: right; flex-shrink: 0; }
-.rh-name { flex: 1; padding-left: 4px; }
+.rh-rank  { width: 18px; text-align: right; flex-shrink: 0; }
+.rh-name  { flex: 1; padding-left: 4px; }
 .rh-value { width: 52px; text-align: right; flex-shrink: 0; }
-.rh-star { width: 22px; flex-shrink: 0; }
+.rh-price { width: 64px; text-align: right; flex-shrink: 0; }
+.rh-star  { width: 22px; flex-shrink: 0; }
 
 .ranking-list { overflow-y: auto; }
 
@@ -299,3 +300,49 @@
   color: #9ca3af;
   flex-shrink: 0;
 }
+
+/* 국내/해외 서브탭 */
+.wl-market-tabs {
+  display: flex;
+  border-bottom: 1px solid #2d2d2d;
+  padding: 0 6px;
+  gap: 2px;
+}
+
+.wl-market-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #6b7280;
+  font-size: 11px;
+  padding: 4px 0;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.wl-market-btn:hover { color: #e5e7eb; }
+.wl-market-btn.active { color: #e5e7eb; border-bottom-color: #3b82f6; }
+
+/* 랭킹 가격 컬럼 */
+.r-price-col {
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.r-price {
+  font-size: 11px;
+  color: #e5e7eb;
+}
+
+.r-price-empty { color: #4b5563; }
+
+.r-change {
+  font-size: 10px;
+}
+
+.r-change.up   { color: #ef5350; }
+.r-change.down { color: #2196F3; }
