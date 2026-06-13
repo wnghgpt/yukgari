@@ -4,14 +4,14 @@ import time as _time
 from data_loader import StockDataLoader
 
 _rank_cache: dict = {}
-_RANK_TTL = 1800  # 30분
+_TTL = {"dom_marcap": 86400, "dom_trading": 1800, "us_marcap": 1800, "us_trading": 1800}
 
 
 def _cached_rank(key: str, fetch_fn):
     entry = _rank_cache.get(key)
     if entry:
         data, ts = entry
-        if _time.time() - ts < _RANK_TTL:
+        if _time.time() - ts < _TTL.get(key, 1800):
             return data
     data = fetch_fn()
     if data:
@@ -158,7 +158,7 @@ def get_indicators(symbol: str):
 
 @router.get("/ranking/marcap")
 def ranking_marcap():
-    from api.services.kis import fetch_domestic_marcap
+    from api.services.krx import fetch_domestic_marcap
     return _cached_rank("dom_marcap", fetch_domestic_marcap)
 
 

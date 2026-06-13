@@ -53,7 +53,10 @@ export function RankingTab({ data, loading, market }: Props) {
             >
               <span className="r-rank">{item.rank}</span>
               <div className="r-info">
-                <span className="r-name">{item.name}</span>
+                <div className="r-name-row">
+                  <span className="r-name">{item.name}</span>
+                  {item.value_label && <span className="r-value-label">{item.value_label}</span>}
+                </div>
                 <span className="r-code">{item.symbol}</span>
               </div>
               <div className="r-price-col">

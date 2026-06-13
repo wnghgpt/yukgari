@@ -50,7 +50,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Alert] 시작 로드 오류: {e}")
     asyncio.create_task(_daily_summary_loop())
+    asyncio.create_task(_prewarm_ranking_cache())
     yield
+
+
+async def _prewarm_ranking_cache():
+    """서버 시작 직후 랭킹 캐시 미리 채움 — 첫 요청 즉시 응답"""
+    await asyncio.sleep(2)  # lifespan 안정화 대기
+    from api.routers.stock import _cached_rank
+    from api.services.krx import fetch_domestic_marcap
+    from api.services.kis import (
+        fetch_domestic_trading,
+        fetch_overseas_marcap, fetch_overseas_trading,
+    )
+    tasks = [
+        ("dom_marcap",  fetch_domestic_marcap),
+        ("dom_trading", fetch_domestic_trading),
+        ("us_marcap",   fetch_overseas_marcap),
+        ("us_trading",  fetch_overseas_trading),
+    ]
+    for key, fn in tasks:
+        try:
+            await asyncio.to_thread(_cached_rank, key, fn)
+        except Exception as e:
+            print(f"[Prewarm] {key} 오류: {e}")
 
 
 app = FastAPI(title="Stocks API", lifespan=lifespan)
