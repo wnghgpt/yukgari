@@ -479,7 +479,7 @@ export function ChartView() {
   useEffect(() => { isOverseasRef.current = !/^\d+$/.test(symbol) }, [symbol])
   useEffect(() => { symbolRef.current = symbol }, [symbol])
   useEffect(() => { drawnLinesRef.current = drawnLines; drawFnRef.current() }, [drawnLines])
-  useEffect(() => { drawFnRef.current() }, [livePrice])
+  useEffect(() => { drawFnRef.current() }, [livePrices[symbol]])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawingMode('none') }
     document.addEventListener('keydown', onKey)
