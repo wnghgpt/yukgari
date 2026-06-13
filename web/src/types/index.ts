@@ -32,6 +32,8 @@ export interface RankingItem {
   name: string
   value: number
   value_label: string
+  price?: number | null
+  change_pct?: number | null
 }
 
 export type SidebarTab = 'watchlist' | 'marcap' | 'trading'
