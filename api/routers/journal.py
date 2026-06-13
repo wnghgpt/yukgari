@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel
 from typing import Optional
 import asyncio
@@ -32,13 +32,14 @@ class JournalCreateRequest(BaseModel):
 
 
 @router.get("/journal")
-def fetch_journal():
-    return SupabaseDB.fetch_trades()
+def fetch_journal(uid: str = Query(...)):
+    return SupabaseDB.fetch_trades(uid)
 
 
 @router.post("/journal")
-async def create_journal(body: JournalCreateRequest):
+async def create_journal(body: JournalCreateRequest, uid: str = Query(...)):
     insert_data = {k: v for k, v in body.model_dump().items() if k != 'name'}
+    insert_data["user_id"] = uid
     data, err = await asyncio.to_thread(SupabaseDB.insert_trade, insert_data)
     if err:
         raise HTTPException(status_code=500, detail=err)
@@ -60,7 +61,7 @@ async def create_journal(body: JournalCreateRequest):
 
 
 @router.patch("/journal/{trade_id}")
-async def update_journal(trade_id: str, request: Request):
+async def update_journal(trade_id: str, request: Request, uid: str = Query(...)):
     payload = await request.json()
     ok = await asyncio.to_thread(SupabaseDB.update_trade, trade_id, payload)
     if not ok:
@@ -86,8 +87,8 @@ async def update_journal(trade_id: str, request: Request):
 
 
 @router.delete("/journal/{trade_id}")
-def delete_journal(trade_id: str):
-    ok = SupabaseDB.delete_trade(trade_id)
+def delete_journal(trade_id: str, uid: str = Query(...)):
+    ok = SupabaseDB.delete_trade(trade_id, uid)
     if not ok:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}

@@ -3,6 +3,10 @@ import { persist } from 'zustand/middleware'
 import type { Period, ScenarioData, DrawnLine } from '../types'
 
 interface AppState {
+  // auth
+  userId: string | null
+  setUserId: (id: string) => void
+
   // chart
   symbol: string
   symbolName: string
@@ -44,6 +48,7 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
+      userId: null,
       symbol: '005930',
       symbolName: '삼성전자',
       period: 'D',
@@ -55,6 +60,7 @@ export const useAppStore = create<AppState>()(
       livePrices: {},
       prevCloses: {},
 
+      setUserId: (id) => set({ userId: id }),
       setSymbol: (symbol, name) => set({ symbol, symbolName: name ?? symbol }),
       setPeriod: (period) => set({ period }),
       setTotalAsset: (v) => set({ totalAsset: v }),
@@ -75,6 +81,7 @@ export const useAppStore = create<AppState>()(
     {
       name: 'stocks-app',
       partialize: (s) => ({
+        userId: s.userId,
         symbol: s.symbol,
         symbolName: s.symbolName,
         period: s.period,

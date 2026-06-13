@@ -125,44 +125,78 @@ class SupabaseDB:
 
     # --- [3] 관심 종목 (watchlist) CRUD ---
 
+    # --- [3-u] 유저 ---
+
     @staticmethod
-    def insert_watchlist(stock_code, stock_name, market_type):
+    def fetch_user(user_id: str):
+        if not SupabaseDB.is_connected():
+            return None
+        try:
+            r = supabase.table("users").select("*").eq("id", user_id).execute()
+            return r.data[0] if r.data else None
+        except Exception as e:
+            print(f"DB Fetch User Error: {e}")
+            return None
+
+    @staticmethod
+    def update_user_chat_id(user_id: str, chat_id: int) -> bool:
+        if not SupabaseDB.is_connected():
+            return False
+        try:
+            r = supabase.table("users").update({"telegram_chat_id": chat_id}).eq("id", user_id).execute()
+            return len(r.data) > 0
+        except Exception as e:
+            print(f"DB Update User ChatId Error: {e}")
+            return False
+
+    @staticmethod
+    def fetch_users_with_telegram() -> list:
+        if not SupabaseDB.is_connected():
+            return []
+        try:
+            r = supabase.table("users").select("*").not_.is_("telegram_chat_id", "null").execute()
+            return r.data or []
+        except Exception as e:
+            print(f"DB Fetch Users Telegram Error: {e}")
+            return []
+
+    @staticmethod
+    def insert_watchlist(stock_code, stock_name, market_type, user_id: str):
         """관심 종목 추가"""
         if not SupabaseDB.is_connected():
             return None
-        
         payload = {
             "stock_code": stock_code,
             "stock_name": stock_name,
-            "market_type": market_type
+            "market_type": market_type,
+            "user_id": user_id,
         }
         try:
             response = supabase.table("watchlist").insert(payload).execute()
             return response.data[0] if response.data else None
         except Exception as e:
-            # 중복 추가 시 에러 발생 가능하므로 예외 처리
             print(f"DB Insert Watchlist Error: {e}")
             return None
 
     @staticmethod
-    def fetch_watchlist():
-        """관심 종목 전체 조회"""
+    def fetch_watchlist(user_id: str) -> list:
+        """관심 종목 조회 (유저별)"""
         if not SupabaseDB.is_connected():
             return []
         try:
-            response = supabase.table("watchlist").select("*").order("created_at", desc=False).execute()
+            response = supabase.table("watchlist").select("*").eq("user_id", user_id).order("created_at", desc=False).execute()
             return response.data if response.data else []
         except Exception as e:
             print(f"DB Fetch Watchlist Error: {e}")
             return []
 
     @staticmethod
-    def delete_watchlist(stock_code):
+    def delete_watchlist(stock_code: str, user_id: str) -> bool:
         """관심 종목 삭제"""
         if not SupabaseDB.is_connected():
             return False
         try:
-            response = supabase.table("watchlist").delete().eq("stock_code", stock_code).execute()
+            response = supabase.table("watchlist").delete().eq("stock_code", stock_code).eq("user_id", user_id).execute()
             return len(response.data) > 0
         except Exception as e:
             print(f"DB Delete Watchlist Error: {e}")
@@ -171,11 +205,14 @@ class SupabaseDB:
     # --- [4] 매매 일지 (trades) CRUD ---
 
     @staticmethod
-    def fetch_trades():
+    def fetch_trades(user_id: str = None):
         if not SupabaseDB.is_connected():
             return []
         try:
-            response = supabase.table("trades").select("*").order("date", desc=True).execute()
+            q = supabase.table("trades").select("*").order("date", desc=True)
+            if user_id:
+                q = q.eq("user_id", user_id)
+            response = q.execute()
             return response.data if response.data else []
         except Exception as e:
             print(f"DB Fetch Trades Error: {e}")
@@ -256,11 +293,14 @@ class SupabaseDB:
             return False
 
     @staticmethod
-    def delete_trade(trade_id: str):
+    def delete_trade(trade_id: str, user_id: str = None):
         if not SupabaseDB.is_connected():
             return False
         try:
-            response = supabase.table("trades").delete().eq("id", trade_id).execute()
+            q = supabase.table("trades").delete().eq("id", trade_id)
+            if user_id:
+                q = q.eq("user_id", user_id)
+            response = q.execute()
             return len(response.data) > 0
         except Exception as e:
             print(f"DB Delete Trade Error: {e}")

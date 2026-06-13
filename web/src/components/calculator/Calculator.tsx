@@ -48,9 +48,10 @@ export function Calculator() {
     ? `$${allowedLoss.toFixed(0)}`
     : `${(allowedLoss / 10000).toFixed(1)}만원`
 
+  const userId = useAppStore(s => s.userId)
   const addMutation = useMutation({
-    mutationFn: api.addJournal,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal'] }),
+    mutationFn: (body: Record<string, unknown>) => api.addJournal(body, userId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal', userId] }),
   })
 
   const handleJournalAdd = (payload: JournalPayload) => {

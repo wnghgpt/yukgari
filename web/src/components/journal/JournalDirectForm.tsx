@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../api/stock'
+import { useAppStore } from '../../store'
 import type { JournalPayload } from '../calculator/StrategyTab'
 import './JournalDirectForm.css'
 
@@ -18,6 +19,7 @@ interface Props {
 
 export function JournalDirectForm({ ticker, defaultPattern, payload, isOverseas, onSave, onCancel }: Props) {
   const queryClient = useQueryClient()
+  const userId = useAppStore(s => s.userId)
   const step = isOverseas ? 0.01 : 10
 
   const initPrices  = payload?.entryPrices ?? [0, 0, 0]
@@ -65,10 +67,10 @@ export function JournalDirectForm({ ticker, defaultPattern, payload, isOverseas,
       }
       form.entry_prices.forEach((p, i)  => { body[`entry${i + 1}_price`]  = p || null })
       form.entry_weights.forEach((w, i) => { body[`entry${i + 1}_weight`] = w || null })
-      return api.addJournal(body)
+      return api.addJournal(body, userId!)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['journal'] })
+      queryClient.invalidateQueries({ queryKey: ['journal', userId] })
       onSave()
     },
   })

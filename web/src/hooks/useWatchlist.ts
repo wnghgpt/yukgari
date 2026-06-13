@@ -1,13 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/stock'
+import { useAppStore } from '../store'
 
 export function useWatchlist() {
   const queryClient = useQueryClient()
+  const userId = useAppStore(s => s.userId)
 
   const { data: watchlist = [] } = useQuery({
-    queryKey: ['watchlist'],
-    queryFn: api.watchlist,
+    queryKey: ['watchlist', userId],
+    queryFn: () => api.watchlist(userId!),
     staleTime: 5 * 60 * 1000,
+    enabled: !!userId,
   })
 
   const addMutation = useMutation({
@@ -16,13 +19,13 @@ export function useWatchlist() {
         stock_code: item.symbol,
         stock_name: item.name,
         market_type: /^\d+$/.test(item.symbol) ? 'KR' : 'US',
-      }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['watchlist'] }),
+      }, userId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['watchlist', userId] }),
   })
 
   const removeMutation = useMutation({
-    mutationFn: (symbol: string) => api.removeWatchlist(symbol),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['watchlist'] }),
+    mutationFn: (symbol: string) => api.removeWatchlist(symbol, userId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['watchlist', userId] }),
   })
 
   const isInWatchlist = (symbol: string) =>

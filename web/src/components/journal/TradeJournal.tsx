@@ -125,24 +125,25 @@ function SummaryBar({ trades }: { trades: JournalTrade[] }) {
 interface EditCell { id: string; col: string; value: string }
 
 export function TradeJournal() {
-  const {} = useAppStore()
+  const { userId } = useAppStore()
   const queryClient = useQueryClient()
   const [editCell, setEditCell] = useState<EditCell | null>(null)
 
   const { data: trades = [], isLoading } = useQuery({
-    queryKey: ['journal'],
-    queryFn: api.journal,
+    queryKey: ['journal', userId],
+    queryFn: () => api.journal(userId!),
+    enabled: !!userId,
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, col, value }: EditCell) =>
-      api.updateJournal(id, { [col]: parseVal(col, value) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal'] }),
+      api.updateJournal(id, { [col]: parseVal(col, value) }, userId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal', userId] }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: api.deleteJournal,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal'] }),
+    mutationFn: (id: string) => api.deleteJournal(id, userId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal', userId] }),
   })
 
   const sorted = useMemo(() => sortTrades(trades), [trades])

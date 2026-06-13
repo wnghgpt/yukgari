@@ -34,39 +34,39 @@ export const api = {
   rankingUsTrading: () =>
     get<RankingItem[]>('/ranking/us-trading'),
 
-  watchlist: () =>
-    get<WatchlistItem[]>('/watchlist'),
+  watchlist: (uid: string) =>
+    get<WatchlistItem[]>('/watchlist', { uid }),
 
-  addWatchlist: (body: { stock_code: string; stock_name: string; market_type: string }) =>
-    fetch('/api/watchlist', {
+  addWatchlist: (body: { stock_code: string; stock_name: string; market_type: string }, uid: string) =>
+    fetch(`/api/watchlist?uid=${encodeURIComponent(uid)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() }),
 
-  removeWatchlist: (symbol: string) =>
-    fetch(`/api/watchlist/${symbol}`, { method: 'DELETE' })
+  removeWatchlist: (symbol: string, uid: string) =>
+    fetch(`/api/watchlist/${symbol}?uid=${encodeURIComponent(uid)}`, { method: 'DELETE' })
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() }),
 
-  journal: () =>
-    get<JournalTrade[]>('/journal'),
+  journal: (uid: string) =>
+    get<JournalTrade[]>('/journal', { uid }),
 
-  addJournal: (body: Record<string, unknown>) =>
-    fetch('/api/journal', {
+  addJournal: (body: Record<string, unknown>, uid: string) =>
+    fetch(`/api/journal?uid=${encodeURIComponent(uid)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() }),
 
-  updateJournal: (id: string, body: Record<string, unknown>) =>
-    fetch(`/api/journal/${id}`, {
+  updateJournal: (id: string, body: Record<string, unknown>, uid: string) =>
+    fetch(`/api/journal/${id}?uid=${encodeURIComponent(uid)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() }),
 
-  deleteJournal: (id: string) =>
-    fetch(`/api/journal/${id}`, { method: 'DELETE' })
+  deleteJournal: (id: string, uid: string) =>
+    fetch(`/api/journal/${id}?uid=${encodeURIComponent(uid)}`, { method: 'DELETE' })
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() }),
 
   indicators: (symbol: string) =>

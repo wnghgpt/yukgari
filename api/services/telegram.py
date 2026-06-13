@@ -8,8 +8,9 @@ from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 KST = timezone(timedelta(hours=9))
 
 
-async def send_message(text: str) -> bool:
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+async def send_message(text: str, chat_id=None) -> bool:
+    target = chat_id or TELEGRAM_CHAT_ID
+    if not TELEGRAM_BOT_TOKEN or not target:
         print("[Telegram] 설정 없음 — .env 에 TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID 입력 필요")
         return False
 
@@ -17,7 +18,7 @@ async def send_message(text: str) -> bool:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         resp = requests.post(
             url,
-            json={"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"},
+            json={"chat_id": target, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
         return resp.status_code == 200
@@ -116,7 +117,20 @@ async def send_daily_summary():
     from supabase_db import SupabaseDB
     from data_loader import StockDataLoader
 
-    trades = await asyncio.to_thread(SupabaseDB.fetch_trades)
+    users = await asyncio.to_thread(SupabaseDB.fetch_users_with_telegram)
+    for user in users:
+        await _send_user_daily_summary(user, StockDataLoader)
+
+
+async def _send_user_daily_summary(user: dict, StockDataLoader):
+    from supabase_db import SupabaseDB
+
+    chat_id = user.get("telegram_chat_id")
+    user_id = user.get("id")
+    if not chat_id:
+        return
+
+    trades = await asyncio.to_thread(SupabaseDB.fetch_trades, user_id)
     watch_trades = [t for t in trades if t.get("result") == "감시"]
     if not watch_trades:
         return
@@ -199,4 +213,4 @@ async def send_daily_summary():
         ]
 
     lines.append(div)
-    await send_message("\n".join(lines))
+    await send_message("\n".join(lines), chat_id=chat_id)

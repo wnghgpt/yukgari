@@ -20,6 +20,7 @@ class Alert:
     entry_prices: list[float]       # [entry1, entry2, ...]
     stop_loss: float
     target_price: float
+    user_id: str = ""
     triggered: set[str] = field(default_factory=set)  # "entry_0", "stop", "target"
 
 
@@ -48,7 +49,8 @@ def register_alert(trade: dict):
     if not entries and sl == 0 and tgt == 0:
         return
 
-    alert = Alert(trade_id=tid, ticker=ticker, entry_prices=entries, stop_loss=sl, target_price=tgt)
+    uid = str(trade.get("user_id") or "")
+    alert = Alert(trade_id=tid, ticker=ticker, entry_prices=entries, stop_loss=sl, target_price=tgt, user_id=uid)
     _alerts.setdefault(ticker, [])
     _alerts[ticker] = [a for a in _alerts[ticker] if a.trade_id != tid]  # 중복 방지
     _alerts[ticker].append(alert)
@@ -73,6 +75,17 @@ def load_from_trades(trades: list[dict]):
 
 # ── 가격 수신 → 조건 체크 ────────────────────────────────────────────
 
+async def _get_chat_id(user_id: str):
+    if not user_id:
+        return None
+    try:
+        from supabase_db import SupabaseDB
+        user = await asyncio.to_thread(SupabaseDB.fetch_user, user_id)
+        return user.get("telegram_chat_id") if user else None
+    except Exception:
+        return None
+
+
 async def on_price(ticker: str, price: float):
     alerts = _alerts.get(ticker)
     if not alerts:
@@ -81,6 +94,8 @@ async def on_price(ticker: str, price: float):
     from api.services.telegram import send_message
 
     for alert in list(alerts):
+        chat_id = await _get_chat_id(alert.user_id) if alert.user_id else None
+
         # 진입가 근접 (0.3% 이내) — 순서 보장: N차는 N-1차 이후에만 체크
         for i, ep in enumerate(alert.entry_prices):
             key = f"entry_{i}"
@@ -90,21 +105,21 @@ async def on_price(ticker: str, price: float):
                 if abs(price - ep) / ep <= 0.003:
                     alert.triggered.add(key)
                     ind = await _fetch_indicators(ticker)
-                    asyncio.create_task(send_message(_msg_entry(alert, i + 1, ep, price, ind)))
+                    asyncio.create_task(send_message(_msg_entry(alert, i + 1, ep, price, ind), chat_id=chat_id))
 
         # 손절가 도달
         if "stop" not in alert.triggered and alert.stop_loss > 0:
             if price <= alert.stop_loss:
                 alert.triggered.add("stop")
                 ind = await _fetch_indicators(ticker)
-                asyncio.create_task(send_message(_msg_stop(alert, price, ind)))
+                asyncio.create_task(send_message(_msg_stop(alert, price, ind), chat_id=chat_id))
 
         # 목표가 도달
         if "target" not in alert.triggered and alert.target_price > 0:
             if price >= alert.target_price:
                 alert.triggered.add("target")
                 ind = await _fetch_indicators(ticker)
-                asyncio.create_task(send_message(_msg_target(alert, price, ind)))
+                asyncio.create_task(send_message(_msg_target(alert, price, ind), chat_id=chat_id))
 
 
 # ── 보조지표 계산 ────────────────────────────────────────────────────

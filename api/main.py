@@ -51,6 +51,8 @@ async def lifespan(app: FastAPI):
         print(f"[Alert] 시작 로드 오류: {e}")
     asyncio.create_task(_daily_summary_loop())
     asyncio.create_task(_prewarm_ranking_cache())
+    from api.services.telegram_bot import poll_loop as _bot_poll
+    asyncio.create_task(_bot_poll())
     yield
 
 

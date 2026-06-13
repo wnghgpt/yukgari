@@ -1,16 +1,66 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ChartView } from './components/chart/ChartView'
 import { Watchlist } from './components/watchlist/Watchlist'
 import { Calculator } from './components/calculator/Calculator'
 import { TradeJournal } from './components/journal/TradeJournal'
+import { useAppStore } from './store'
 import './App.css'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
 })
 
+function AppInner() {
+  const { userId, setUserId } = useAppStore()
+  const [codeInput, setCodeInput] = useState('')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const u = params.get('u')
+    if (u) {
+      setUserId(u)
+      // URL에서 파라미터 제거 (히스토리 오염 방지)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [setUserId])
+
+  if (!userId) {
+    return (
+      <div className="access-gate">
+        <div className="access-gate-box">
+          <div className="access-gate-title">접속 코드를 입력하세요</div>
+          <input
+            className="access-gate-input"
+            type="text"
+            placeholder="코드 입력"
+            value={codeInput}
+            onChange={e => setCodeInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && codeInput.trim() && setUserId(codeInput.trim())}
+          />
+          <button
+            className="access-gate-btn"
+            onClick={() => codeInput.trim() && setUserId(codeInput.trim())}
+          >
+            입장
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <AppContent />
+}
+
 export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppInner />
+    </QueryClientProvider>
+  )
+}
+
+function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarW, setSidebarW] = useState(210)
   const [calcOpen, setCalcOpen] = useState(true)
@@ -52,10 +102,9 @@ export default function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="app">
+    <div className="app">
 
-        {/* 헤더 */}
+      {/* 헤더 */}
         <header className="app-header">
           <span className="app-logo"> 이란 매매법 </span>
         </header>
@@ -132,6 +181,5 @@ export default function App() {
 
         </div>{/* app-body */}
       </div>
-    </QueryClientProvider>
   )
 }
