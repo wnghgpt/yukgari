@@ -602,20 +602,6 @@ export function ChartView() {
 
   useEffect(() => { isOverseasRef.current = !/^\d+$/.test(symbol) }, [symbol])
   useEffect(() => { symbolRef.current = symbol }, [symbol])
-
-  // symbol 변경 시 차트 클리어 (OHLCV 로딩 전 이전 종목 잔상 방지)
-  useEffect(() => {
-    const ser = s.current
-    if (!ser) return
-    ser.candle.setData([])
-    ser.volume.setData([])
-    for (const p of MA_PERIODS) ser.mas[p]?.setData([])
-    ser.rsi.setData([])
-    ser.rsi70.setData([])
-    ser.rsi30.setData([])
-    tradeScenarioRef.current = null
-    drawFnRef.current()
-  }, [symbol]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { drawnLinesRef.current = drawnLines; drawFnRef.current() }, [drawnLines])
   useEffect(() => { drawFnRef.current() }, [livePrices[symbol]])
 
