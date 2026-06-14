@@ -11,6 +11,10 @@ interface AppState {
   sidebarTab: SidebarTab
   setSidebarTab: (tab: SidebarTab) => void
 
+  // MY 서브탭
+  mySubTab: '감시' | '보유' | '수익' | '손절'
+  setMySubTab: (tab: '감시' | '보유' | '수익' | '손절') => void
+
   // right panel tab (not persisted)
   rightTab: 'calc' | 'journal'
   setRightTab: (tab: 'calc' | 'journal') => void
@@ -62,6 +66,7 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       userId: null,
       sidebarTab: 'watchlist',
+      mySubTab: '감시',
       rightTab: 'calc',
       selectedTradeId: null,
       symbol: '005930',
@@ -77,6 +82,7 @@ export const useAppStore = create<AppState>()(
 
       setUserId: (id) => set({ userId: id }),
       setSidebarTab: (tab) => set({ sidebarTab: tab }),
+      setMySubTab: (tab) => set({ mySubTab: tab }),
       setRightTab: (tab) => set({ rightTab: tab }),
       setSelectedTradeId: (id) => set({ selectedTradeId: id }),
       setSymbol: (symbol, name) => set({ symbol, symbolName: name ?? symbol }),

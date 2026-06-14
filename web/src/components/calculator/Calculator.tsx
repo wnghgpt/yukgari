@@ -48,10 +48,14 @@ export function Calculator() {
     ? `$${allowedLoss.toFixed(0)}`
     : `${(allowedLoss / 10000).toFixed(1)}만원`
 
-  const userId = useAppStore(s => s.userId)
+  const { userId, setSidebarTab, setMySubTab } = useAppStore()
   const addMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.addJournal(body, userId!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal', userId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journal', userId] })
+      setSidebarTab('my')
+      setMySubTab('감시')
+    },
   })
 
   const handleJournalAdd = (payload: JournalPayload) => {

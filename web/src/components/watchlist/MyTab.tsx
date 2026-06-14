@@ -203,10 +203,10 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
 // ── Main MyTab ────────────────────────────────────────────────────
 
 export function MyTab() {
-  const [subTab, setSubTab] = useState<MySubTab>('감시')
   const {
     userId, symbol: currentSymbol,
     setSymbol, setRightTab, setSelectedTradeId,
+    mySubTab: subTab, setMySubTab: setSubTab,
     livePrices, setLivePrice,
     prevCloses, setPrevClose,
   } = useAppStore()
@@ -220,19 +220,20 @@ export function MyTab() {
 
   const { subscribe } = usePriceSocket((sym, price) => setLivePrice(sym, price))
 
+  const activeTickers = trades
+    .filter(t => t.result === '감시' || t.result === '보유')
+    .map(t => t.ticker)
+
   // 감시+보유 종목 구독 및 초기 가격 로드
   useEffect(() => {
-    const active = trades.filter(t => t.result === '감시' || t.result === '보유')
-    active.forEach(t => {
-      subscribe(t.ticker)
-      if (prevCloses[t.ticker] == null || livePrices[t.ticker] == null) {
-        api.price(t.ticker).then(r => {
-          if (r.prev_close != null) setPrevClose(t.ticker, r.prev_close)
-          if (r.price != null) setLivePrice(t.ticker, r.price)
-        }).catch(() => {})
-      }
+    activeTickers.forEach(sym => {
+      subscribe(sym)
+      api.price(sym).then(r => {
+        if (r.prev_close != null) setPrevClose(sym, r.prev_close)
+        if (r.price != null) setLivePrice(sym, r.price)
+      }).catch(() => {})
     })
-  }, [trades.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTickers.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = trades.filter(t => t.result === subTab)
 
