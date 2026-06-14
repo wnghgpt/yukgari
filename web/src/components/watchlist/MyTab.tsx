@@ -14,9 +14,6 @@ function fmtPrice(sym: string, price: number): string {
   return isOverseas(sym) ? `$${price.toFixed(2)}` : price.toLocaleString()
 }
 
-function fmtLevel(sym: string, price: number): string {
-  return isOverseas(sym) ? `$${price.toFixed(0)}` : Math.round(price).toLocaleString()
-}
 
 function fmtPct(val: number): string {
   return `${val >= 0 ? '+' : ''}${val.toFixed(1)}%`
