@@ -326,33 +326,92 @@ export function ChartView() {
       const tsc = tradeScenarioRef.current
       if (tsc && tsc.trade.ticker === symbolRef.current) {
         const { trade, tradeBarIndex, startPrice } = tsc
-        const ENTRY_COLORS = ['#3b82f6', '#60a5fa', '#2ecc71', '#a78bfa']
 
         const absXY = (absIdx: number, price: number) => ({
           x: ts.logicalToCoordinate(absIdx as unknown as Logical) as number | null,
           y: ser.candle.priceToCoordinate(price) as number | null,
         })
 
-        const startPt = absXY(tradeBarIndex, startPrice)
+        const drawHLine = (price: number, color: string, label: string) => {
+          if (!startPt.x) return
+          const y = ser.candle.priceToCoordinate(price) as number | null
+          if (y == null) return
+          ctx.save()
+          ctx.strokeStyle = color
+          ctx.lineWidth = 1
+          ctx.setLineDash([4, 3])
+          ctx.beginPath()
+          ctx.moveTo(startPt.x, y)
+          ctx.lineTo(canvas.width, y)
+          ctx.stroke()
+          ctx.setLineDash([])
+          ctx.fillStyle = color
+          ctx.font = '9px sans-serif'
+          ctx.fillText(label, startPt.x + 4, y - 3)
+          ctx.restore()
+        }
 
-        // 경로: 시작 → 저항선(5봉 후) → 목표가(30봉 후)
+        const startPt = absXY(tradeBarIndex, startPrice)
+        const resist  = trade.channel_top
+        const support = trade.channel_bottom
+        const isZone  = resist != null && support != null && resist !== support
+
+        // 진입가 목록 수집
+        const entryPrices: number[] = []
+        for (let i = 1; i <= 4; i++) {
+          const p = trade[`entry${i}_price` as keyof JournalTrade] as number | undefined
+          if (p) entryPrices.push(p)
+        }
+
+        // 경로 포인트 + 매수 도트 빌드 (buildScenario와 동일 구조)
         const pathPts: { x: number; y: number }[] = []
+        const entryDots: { x: number; y: number; nth: number }[] = []
+
         if (startPt.x != null && startPt.y != null)
           pathPts.push({ x: startPt.x, y: startPt.y })
-        if (trade.channel_top) {
-          const p = absXY(tradeBarIndex + 5, trade.channel_top)
-          if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
-        }
-        if (trade.target_price) {
-          const p = absXY(tradeBarIndex + 30, trade.target_price)
-          if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
-        }
-        // 저항선/목표가 없으면 1차 진입가를 끝점으로 대체
-        if (pathPts.length < 2 && trade.entry1_price) {
-          const p = absXY(tradeBarIndex + 5, trade.entry1_price)
-          if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
+
+        if (isZone) {
+          const ZONE_BARS = [5, 10, 15, 20]
+          entryPrices.forEach((price, i) => {
+            const offset = ZONE_BARS[i] ?? (i + 1) * 5
+            const p = absXY(tradeBarIndex + offset, price)
+            if (p.x != null && p.y != null) {
+              pathPts.push({ x: p.x, y: p.y })
+              entryDots.push({ x: p.x, y: p.y, nth: i + 1 })
+            }
+          })
+          if (trade.target_price) {
+            const p = absXY(tradeBarIndex + 50, trade.target_price)
+            if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
+          }
+        } else {
+          // Breakout: 1차(+8) → 급등(+15, 저항*1.1) → 2차풀백(+22) → 목표(+45)
+          const [e1, e2] = entryPrices
+          if (e1) {
+            const p = absXY(tradeBarIndex + 8, e1)
+            if (p.x != null && p.y != null) {
+              pathPts.push({ x: p.x, y: p.y })
+              entryDots.push({ x: p.x, y: p.y, nth: 1 })
+            }
+          }
+          if (resist) {
+            const p = absXY(tradeBarIndex + 15, resist * 1.10)
+            if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
+          }
+          if (e2) {
+            const p = absXY(tradeBarIndex + 22, e2)
+            if (p.x != null && p.y != null) {
+              pathPts.push({ x: p.x, y: p.y })
+              entryDots.push({ x: p.x, y: p.y, nth: 2 })
+            }
+          }
+          if (trade.target_price) {
+            const p = absXY(tradeBarIndex + 45, trade.target_price)
+            if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
+          }
         }
 
+        // 화살표 경로
         if (pathPts.length >= 2) {
           ctx.save()
           ctx.strokeStyle = '#FFD700'
@@ -377,60 +436,22 @@ export function ChartView() {
           ctx.restore()
         }
 
-        // 손절 수평선 (빨강 점선)
-        if (trade.stop_loss && startPt.x != null) {
-          const slY = ser.candle.priceToCoordinate(trade.stop_loss) as number | null
-          if (slY != null) {
-            ctx.save()
-            ctx.strokeStyle = '#ef4444'
-            ctx.lineWidth = 1
-            ctx.setLineDash([4, 3])
-            ctx.beginPath()
-            ctx.moveTo(startPt.x, slY)
-            ctx.lineTo(canvas.width, slY)
-            ctx.stroke()
-            ctx.setLineDash([])
-            ctx.fillStyle = '#ef4444'
-            ctx.font = '9px sans-serif'
-            ctx.fillText('손절', startPt.x + 4, slY - 3)
-            ctx.restore()
-          }
-        }
+        // 수평선: 저항 / 지지 / 손절 / 목표
+        if (resist) drawHLine(resist, '#e2e8f0', '저항')
+        if (isZone && support) drawHLine(support, '#94a3b8', '지지')
+        if (trade.stop_loss) drawHLine(trade.stop_loss, '#ef4444', '손절')
+        if (trade.target_price) drawHLine(trade.target_price, '#2ecc71', '목표')
 
-        // 목표가 수평선 (초록 점선)
-        if (trade.target_price && startPt.x != null) {
-          const tpY = ser.candle.priceToCoordinate(trade.target_price) as number | null
-          if (tpY != null) {
-            ctx.save()
-            ctx.strokeStyle = '#2ecc71'
-            ctx.lineWidth = 1
-            ctx.setLineDash([4, 3])
-            ctx.beginPath()
-            ctx.moveTo(startPt.x, tpY)
-            ctx.lineTo(canvas.width, tpY)
-            ctx.stroke()
-            ctx.setLineDash([])
-            ctx.fillStyle = '#2ecc71'
-            ctx.font = '9px sans-serif'
-            ctx.fillText('목표', startPt.x + 4, tpY - 3)
-            ctx.restore()
-          }
-        }
-
-        // 차수 도트 (entry1~4)
-        for (let i = 1; i <= 4; i++) {
-          const price = trade[`entry${i}_price` as keyof JournalTrade] as number | undefined
-          if (!price) continue
-          const ep = absXY(tradeBarIndex + (i - 1) * 3 + 2, price)
-          if (ep.x == null || ep.y == null) continue
+        // 매수 도트 (핑크, nth 표시)
+        for (const dot of entryDots) {
           ctx.save()
           ctx.beginPath()
-          ctx.arc(ep.x, ep.y, 4, 0, Math.PI * 2)
-          ctx.fillStyle = ENTRY_COLORS[i - 1]
+          ctx.arc(dot.x, dot.y, 5, 0, Math.PI * 2)
+          ctx.fillStyle = '#ec4899'
           ctx.fill()
-          ctx.font = 'bold 9px sans-serif'
-          ctx.fillStyle = ENTRY_COLORS[i - 1]
-          ctx.fillText(`${i}차`, ep.x + 6, ep.y + 3)
+          ctx.font = 'bold 10px sans-serif'
+          ctx.fillStyle = '#ec4899'
+          ctx.fillText(`${dot.nth}차`, dot.x + 7, dot.y + 4)
           ctx.restore()
         }
 
