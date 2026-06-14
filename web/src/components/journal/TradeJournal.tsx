@@ -271,7 +271,7 @@ export function TradeJournal() {
                     <td className="td-num td-ro">{days ?? <span className="td-na">-</span>}</td>
 
                     {/* 종목/패턴 */}
-                    <td className="td-ticker">{C(t.id, 'ticker', t.ticker, t.ticker, 'text')}</td>
+                    <td className="td-ticker" title={t.ticker}>{t.name || t.ticker}</td>
                     <td className="td-pattern">
                       {C(t.id, 'pattern', t.pattern, PATTERN_SHORT[t.pattern] ?? t.pattern, 'text', PATTERNS)}
                     </td>

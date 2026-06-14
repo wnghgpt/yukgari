@@ -73,6 +73,7 @@ export interface JournalTrade {
   date: string
   exit_date?: string
   ticker: string
+  name?: string
   pattern: string
   stages: number
   channel_top?: number

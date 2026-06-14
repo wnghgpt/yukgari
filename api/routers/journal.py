@@ -38,7 +38,7 @@ def fetch_journal(uid: str = Query(...)):
 
 @router.post("/journal")
 async def create_journal(body: JournalCreateRequest, uid: str = Query(...)):
-    insert_data = {k: v for k, v in body.model_dump().items() if k != 'name'}
+    insert_data = {k: v for k, v in body.model_dump().items()}
     insert_data["user_id"] = uid
     data, err = await asyncio.to_thread(SupabaseDB.insert_trade, insert_data)
     if err:
