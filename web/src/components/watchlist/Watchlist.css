@@ -360,3 +360,160 @@
 
 .r-change.up   { color: #ef5350; }
 .r-change.down { color: #2196F3; }
+
+/* ── MY 탭 ── */
+.my-tab {
+  display: flex;
+  flex-direction: column;
+}
+
+.my-subtabs {
+  display: flex;
+  border-bottom: 1px solid #2d2d2d;
+  flex-shrink: 0;
+}
+
+.my-subtab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  padding: 6px 4px;
+  font-size: 11px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s;
+}
+
+.my-subtab:hover { color: #d1d5db; }
+.my-subtab.active {
+  color: #f9fafb;
+  border-bottom-color: #3b82f6;
+}
+
+.my-subtab-cnt {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.my-list {
+  padding: 4px 0;
+}
+
+.my-empty {
+  text-align: center;
+  color: #4b5563;
+  font-size: 11px;
+  padding: 20px 8px;
+}
+
+/* 카드 */
+.my-card {
+  padding: 7px 10px;
+  border-bottom: 1px solid #1f1f1f;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.my-card:hover { background: #2a2a2a; }
+.my-card.active { background: #1e3a5f; }
+
+/* 카드 상단행: 종목명 + 패턴 + D+n */
+.my-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+  gap: 6px;
+}
+
+.my-card-name {
+  font-size: 12px;
+  color: #f9fafb;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.my-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.my-card-pattern {
+  font-size: 10px;
+  color: #9ca3af;
+  background: #2d2d2d;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.my-card-days {
+  font-size: 10px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* 카드 중간행: 현재가 + 등락% + 우측값 */
+.my-card-mid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.my-card-price-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.my-card-price {
+  font-size: 12px;
+  color: #e5e7eb;
+}
+
+.my-card-change {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.my-card-change.up   { color: #ef4444; }
+.my-card-change.down { color: #3b82f6; }
+
+.my-card-right-val {
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.my-card-right-val.up   { color: #ef4444; }
+.my-card-right-val.down { color: #3b82f6; }
+
+/* 카드 하단행 (보유만): 다음 tier%, 손절% */
+.my-card-bot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 3px;
+}
+
+.my-card-bot-item {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.my-card-bot-val {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.my-card-bot-val.up   { color: #ef4444; }
+.my-card-bot-val.down { color: #3b82f6; }

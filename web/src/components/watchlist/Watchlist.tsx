@@ -5,20 +5,21 @@ import type { SidebarTab } from '../../types'
 import { api } from '../../api/stock'
 import { WatchlistTab } from './WatchlistTab'
 import { RankingTab } from './RankingTab'
+import { MyTab } from './MyTab'
 import './Watchlist.css'
 
 const TABS: { id: SidebarTab; label: string }[] = [
   { id: 'watchlist', label: '관심' },
   { id: 'marcap',    label: '시총' },
   { id: 'trading',   label: '거래대금' },
+  { id: 'my',        label: 'MY' },
 ]
 
 type Market = 'KR' | 'US'
 
 export function Watchlist() {
-  const [activeTab, setActiveTab] = useState<SidebarTab>('watchlist')
+  const { symbol: currentSymbol, sidebarTab: activeTab, setSidebarTab: setActiveTab } = useAppStore()
   const [market, setMarket] = useState<Market>('KR')
-  const { symbol: currentSymbol } = useAppStore()
 
   const { data: marcapKrData = [], isFetching: marcapKrLoading } = useQuery({
     queryKey: ['ranking', 'marcap', 'KR'],
@@ -56,6 +57,8 @@ export function Watchlist() {
     ? (market === 'KR' ? marcapKrLoading : marcapUsLoading)
     : (market === 'KR' ? tradingKrLoading : tradingUsLoading)
 
+  const isRanking = activeTab === 'marcap' || activeTab === 'trading'
+
   return (
     <div className="watchlist-panel">
       <div className="wl-tabs">
@@ -70,8 +73,8 @@ export function Watchlist() {
         ))}
       </div>
 
-      {/* 국내/해외 서브탭 */}
-      {activeTab !== 'watchlist' && (
+      {/* 국내/해외 서브탭 (랭킹 탭에서만) */}
+      {isRanking && (
         <div className="wl-market-tabs">
           <button
             className={`wl-market-btn ${market === 'KR' ? 'active' : ''}`}
@@ -92,7 +95,10 @@ export function Watchlist() {
         <div style={{ display: activeTab === 'watchlist' ? 'block' : 'none' }}>
           <WatchlistTab currentSymbol={currentSymbol} />
         </div>
-        {activeTab !== 'watchlist' && (
+        <div style={{ display: activeTab === 'my' ? 'block' : 'none' }}>
+          <MyTab />
+        </div>
+        {isRanking && (
           <RankingTab
             data={rankingData}
             loading={rankingLoading}

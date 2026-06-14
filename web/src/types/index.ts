@@ -36,7 +36,7 @@ export interface RankingItem {
   change_pct?: number | null
 }
 
-export type SidebarTab = 'watchlist' | 'marcap' | 'trading'
+export type SidebarTab = 'watchlist' | 'marcap' | 'trading' | 'my'
 
 export interface ScenarioPoint {
   barOffset: number   // 0 = 마지막 봉, 양수 = 미래 봉

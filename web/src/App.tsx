@@ -64,6 +64,15 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarW, setSidebarW] = useState(210)
   const [calcOpen, setCalcOpen] = useState(true)
+  const sidebarTab = useAppStore(s => s.sidebarTab)
+
+  // MY 탭 선택 시 사이드바 자동 확장
+  useEffect(() => {
+    if (sidebarTab === 'my') {
+      setSidebarOpen(true)
+      setSidebarW(w => Math.max(w, 360))
+    }
+  }, [sidebarTab])
   const [calcW, setCalcW] = useState(320)
   const [journalOpen, setJournalOpen] = useState(true)
   const [journalH, setJournalH] = useState(242)

@@ -1,11 +1,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Period, ScenarioData, DrawnLine } from '../types'
+import type { Period, ScenarioData, DrawnLine, SidebarTab } from '../types'
 
 interface AppState {
   // auth
   userId: string | null
   setUserId: (id: string) => void
+
+  // sidebar tab (not persisted)
+  sidebarTab: SidebarTab
+  setSidebarTab: (tab: SidebarTab) => void
 
   // chart
   symbol: string
@@ -49,6 +53,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       userId: null,
+      sidebarTab: 'watchlist',
       symbol: '005930',
       symbolName: '삼성전자',
       period: 'D',
@@ -61,6 +66,7 @@ export const useAppStore = create<AppState>()(
       prevCloses: {},
 
       setUserId: (id) => set({ userId: id }),
+      setSidebarTab: (tab) => set({ sidebarTab: tab }),
       setSymbol: (symbol, name) => set({ symbol, symbolName: name ?? symbol }),
       setPeriod: (period) => set({ period }),
       setTotalAsset: (v) => set({ totalAsset: v }),
