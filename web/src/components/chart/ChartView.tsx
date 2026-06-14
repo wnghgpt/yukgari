@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createChart,
   CandlestickSeries,
@@ -13,7 +13,7 @@ import { api } from '../../api/stock'
 import { useAppStore } from '../../store'
 import { useWatchlist } from '../../hooks/useWatchlist'
 import { StockSearch } from './StockSearch'
-import type { Period, DrawnLine } from '../../types'
+import type { Period, DrawnLine, JournalTrade } from '../../types'
 import './ChartView.css'
 
 // ── helpers ──────────────────────────────────────────────
@@ -92,8 +92,11 @@ export function ChartView() {
 
   const { symbol, symbolName, period, setPeriod, scenario, setScenarioDrag,
           drawnLines, addDrawnLine, removeDrawnLine, clearDrawnLines,
-          livePrices, prevCloses, setPrevClose } = useAppStore()
+          livePrices, prevCloses, setPrevClose,
+          selectedTradeId, userId } = useAppStore()
+  const queryClient = useQueryClient()
   const scenarioRef       = useRef(scenario)
+  const tradeScenarioRef  = useRef<{ trade: JournalTrade; tradeBarIndex: number; startPrice: number } | null>(null)
   const dataLengthRef     = useRef(0)
   const drawFnRef         = useRef<() => void>(() => {})
   const syncHandlesFnRef  = useRef<() => void>(() => {})
@@ -319,6 +322,127 @@ export function ChartView() {
         }
       }
 
+      // 등록 시나리오 (selectedTrade 기준, 등록일 종가에 앵커)
+      const tsc = tradeScenarioRef.current
+      if (tsc && tsc.trade.ticker === symbolRef.current) {
+        const { trade, tradeBarIndex, startPrice } = tsc
+        const ENTRY_COLORS = ['#3b82f6', '#60a5fa', '#2ecc71', '#a78bfa']
+
+        const absXY = (absIdx: number, price: number) => ({
+          x: ts.logicalToCoordinate(absIdx as unknown as Logical) as number | null,
+          y: ser.candle.priceToCoordinate(price) as number | null,
+        })
+
+        const startPt = absXY(tradeBarIndex, startPrice)
+
+        // 경로: 시작 → 저항선(5봉 후) → 목표가(30봉 후)
+        const pathPts: { x: number; y: number }[] = []
+        if (startPt.x != null && startPt.y != null)
+          pathPts.push({ x: startPt.x, y: startPt.y })
+        if (trade.channel_top) {
+          const p = absXY(tradeBarIndex + 5, trade.channel_top)
+          if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
+        }
+        if (trade.target_price) {
+          const p = absXY(tradeBarIndex + 30, trade.target_price)
+          if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
+        }
+
+        if (pathPts.length >= 2) {
+          ctx.save()
+          ctx.strokeStyle = '#FFD700'
+          ctx.lineWidth = 1.5
+          ctx.setLineDash([6, 3])
+          ctx.beginPath()
+          ctx.moveTo(pathPts[0].x, pathPts[0].y)
+          for (let i = 1; i < pathPts.length; i++) ctx.lineTo(pathPts[i].x, pathPts[i].y)
+          ctx.stroke()
+          ctx.setLineDash([])
+          const last = pathPts[pathPts.length - 1]
+          const prev = pathPts[pathPts.length - 2]
+          const angle = Math.atan2(last.y - prev.y, last.x - prev.x)
+          const sz = 8
+          ctx.fillStyle = '#FFD700'
+          ctx.beginPath()
+          ctx.moveTo(last.x, last.y)
+          ctx.lineTo(last.x - sz * Math.cos(angle - Math.PI / 6), last.y - sz * Math.sin(angle - Math.PI / 6))
+          ctx.lineTo(last.x - sz * Math.cos(angle + Math.PI / 6), last.y - sz * Math.sin(angle + Math.PI / 6))
+          ctx.closePath()
+          ctx.fill()
+          ctx.restore()
+        }
+
+        // 손절 수평선 (빨강 점선)
+        if (trade.stop_loss && startPt.x != null) {
+          const slY = ser.candle.priceToCoordinate(trade.stop_loss) as number | null
+          if (slY != null) {
+            ctx.save()
+            ctx.strokeStyle = '#ef4444'
+            ctx.lineWidth = 1
+            ctx.setLineDash([4, 3])
+            ctx.beginPath()
+            ctx.moveTo(startPt.x, slY)
+            ctx.lineTo(canvas.width, slY)
+            ctx.stroke()
+            ctx.setLineDash([])
+            ctx.fillStyle = '#ef4444'
+            ctx.font = '9px sans-serif'
+            ctx.fillText('손절', startPt.x + 4, slY - 3)
+            ctx.restore()
+          }
+        }
+
+        // 목표가 수평선 (초록 점선)
+        if (trade.target_price && startPt.x != null) {
+          const tpY = ser.candle.priceToCoordinate(trade.target_price) as number | null
+          if (tpY != null) {
+            ctx.save()
+            ctx.strokeStyle = '#2ecc71'
+            ctx.lineWidth = 1
+            ctx.setLineDash([4, 3])
+            ctx.beginPath()
+            ctx.moveTo(startPt.x, tpY)
+            ctx.lineTo(canvas.width, tpY)
+            ctx.stroke()
+            ctx.setLineDash([])
+            ctx.fillStyle = '#2ecc71'
+            ctx.font = '9px sans-serif'
+            ctx.fillText('목표', startPt.x + 4, tpY - 3)
+            ctx.restore()
+          }
+        }
+
+        // 차수 도트 (entry1~4)
+        for (let i = 1; i <= 4; i++) {
+          const price = trade[`entry${i}_price` as keyof JournalTrade] as number | undefined
+          if (!price) continue
+          const ep = absXY(tradeBarIndex + (i - 1) * 3 + 2, price)
+          if (ep.x == null || ep.y == null) continue
+          ctx.save()
+          ctx.beginPath()
+          ctx.arc(ep.x, ep.y, 4, 0, Math.PI * 2)
+          ctx.fillStyle = ENTRY_COLORS[i - 1]
+          ctx.fill()
+          ctx.font = 'bold 9px sans-serif'
+          ctx.fillStyle = ENTRY_COLORS[i - 1]
+          ctx.fillText(`${i}차`, ep.x + 6, ep.y + 3)
+          ctx.restore()
+        }
+
+        // 시작점 도트 (등록일)
+        if (startPt.x != null && startPt.y != null) {
+          ctx.save()
+          ctx.beginPath()
+          ctx.arc(startPt.x, startPt.y, 5, 0, Math.PI * 2)
+          ctx.fillStyle = '#131722'
+          ctx.fill()
+          ctx.strokeStyle = '#FFD700'
+          ctx.lineWidth = 2
+          ctx.stroke()
+          ctx.restore()
+        }
+      }
+
       // 유저 드로잉 라인
       const userLines = drawnLinesRef.current[symbolRef.current] ?? []
       for (const line of userLines) {
@@ -480,6 +604,21 @@ export function ChartView() {
   useEffect(() => { symbolRef.current = symbol }, [symbol])
   useEffect(() => { drawnLinesRef.current = drawnLines; drawFnRef.current() }, [drawnLines])
   useEffect(() => { drawFnRef.current() }, [livePrices[symbol]])
+
+  useEffect(() => {
+    if (!selectedTradeId || !data?.length) {
+      tradeScenarioRef.current = null
+      drawFnRef.current()
+      return
+    }
+    const trades = queryClient.getQueryData<JournalTrade[]>(['journal', userId])
+    const trade = trades?.find(t => String(t.id) === String(selectedTradeId))
+    if (!trade) { tradeScenarioRef.current = null; drawFnRef.current(); return }
+    const barIndex = data.findIndex(b => (b.Date as string) === trade.date)
+    if (barIndex < 0) { tradeScenarioRef.current = null; drawFnRef.current(); return }
+    tradeScenarioRef.current = { trade, tradeBarIndex: barIndex, startPrice: data[barIndex].Close }
+    drawFnRef.current()
+  }, [selectedTradeId, data, userId]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawingMode('none') }
     document.addEventListener('keydown', onKey)
