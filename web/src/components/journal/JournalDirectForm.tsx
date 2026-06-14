@@ -10,6 +10,7 @@ const RESULTS  = ['감시', '보유', '수익', '손절']
 
 interface Props {
   ticker: string
+  name?: string
   defaultPattern: string
   payload: JournalPayload | null
   isOverseas: boolean
@@ -17,9 +18,9 @@ interface Props {
   onCancel: () => void
 }
 
-export function JournalDirectForm({ ticker, defaultPattern, payload, isOverseas, onSave, onCancel }: Props) {
+export function JournalDirectForm({ ticker, name, defaultPattern, payload, isOverseas, onSave, onCancel }: Props) {
   const queryClient = useQueryClient()
-  const userId = useAppStore(s => s.userId)
+  const { userId, setSidebarTab, setMySubTab } = useAppStore()
   const step = isOverseas ? 0.01 : 10
 
   const initPrices  = payload?.entryPrices ?? [0, 0, 0]
@@ -55,6 +56,7 @@ export function JournalDirectForm({ ticker, defaultPattern, payload, isOverseas,
     mutationFn: () => {
       const body: Record<string, unknown> = {
         ticker:        form.ticker,
+        name:          name ?? form.ticker,
         pattern:       form.pattern,
         date:          form.date,
         stages:        form.entry_prices.filter(p => p > 0).length || form.entry_prices.length,
@@ -71,8 +73,11 @@ export function JournalDirectForm({ ticker, defaultPattern, payload, isOverseas,
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal', userId] })
+      setSidebarTab('my')
+      setMySubTab('감시')
       onSave()
     },
+    onError: (e: Error) => alert(`일지 저장 실패: ${e.message}`),
   })
 
   return (

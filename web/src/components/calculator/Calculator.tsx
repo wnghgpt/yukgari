@@ -50,12 +50,16 @@ export function Calculator() {
 
   const { userId, setSidebarTab, setMySubTab } = useAppStore()
   const addMutation = useMutation({
-    mutationFn: (body: Record<string, unknown>) => api.addJournal(body, userId!),
+    mutationFn: (body: Record<string, unknown>) => {
+      if (!userId) throw new Error('로그인이 필요합니다')
+      return api.addJournal(body, userId)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal', userId] })
       setSidebarTab('my')
       setMySubTab('감시')
     },
+    onError: (e: Error) => alert(`일지 저장 실패: ${e.message}`),
   })
 
   const handleJournalAdd = (payload: JournalPayload) => {
@@ -139,6 +143,7 @@ export function Calculator() {
       {showDirectForm && (
         <JournalDirectForm
           ticker={symbol}
+          name={symbolName}
           defaultPattern={suggestedPattern}
           payload={directPayload}
           isOverseas={isOverseas}
