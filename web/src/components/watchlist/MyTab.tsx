@@ -153,8 +153,15 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
   }
 
   // 수익 / 손절
-  const buyAvg = avgBuyPrice(trade)
-  const sellAvg = avgSellPrice(trade)
+  const buyAvg = avgBuyPrice(trade) ?? trade.entry1_price ?? null
+  const sellAvgFromExec = avgSellPrice(trade)
+  const sellAvg = sellAvgFromExec ?? (() => {
+    const p1 = trade.exit1_price, q1 = trade.exit1_qty ?? 0
+    const p2 = trade.exit2_price, q2 = trade.exit2_qty ?? 0
+    const totalQty = (p1 ? q1 : 0) + (p2 ? q2 : 0)
+    if (!totalQty) return null
+    return ((p1 ?? 0) * q1 + (p2 ?? 0) * q2) / totalQty || (p1 ?? p2 ?? null)
+  })()
   const returnPct = buyAvg && sellAvg ? ((sellAvg / buyAvg) - 1) * 100 : null
   const holdDays =
     trade.exit_date ? daysBetween(trade.date, trade.exit_date) : null
