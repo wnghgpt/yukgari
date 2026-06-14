@@ -97,18 +97,17 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
             <span className="my-card-pattern">{trade.pattern}</span>
             <span className="my-card-days">D+{d}</span>
           </div>
-          <span className="my-card-price">{priceStr}</span>
+          {entry1Pct != null
+            ? <span className={`my-card-price ${entry1Pct >= 0 ? 'up' : 'down'}`}>1차 {fmtPct(entry1Pct)}</span>
+            : <span className="my-card-price">{priceStr}</span>
+          }
         </div>
-        {(changePct != null || entry1Pct != null) && (
-          <div className="my-card-sub">
-            {changePct != null && (
-              <span className={`my-card-sub-item ${changePct >= 0 ? 'up' : 'down'}`}>{fmtPct(changePct)}</span>
-            )}
-            {entry1Pct != null && (
-              <span className={`my-card-sub-item ${entry1Pct >= 0 ? 'up' : 'down'}`}>1차 {fmtPct(entry1Pct)}</span>
-            )}
-          </div>
-        )}
+        <div className="my-card-sub">
+          <span className="my-card-sub-item">{priceStr}</span>
+          {changePct != null && (
+            <span className={`my-card-sub-item ${changePct >= 0 ? 'up' : 'down'}`}>{fmtPct(changePct)}</span>
+          )}
+        </div>
       </div>
     )
   }
