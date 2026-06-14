@@ -38,12 +38,27 @@ def get_stock_info(q: str):
     return StockDataLoader.get_stock_info(q)
 
 
+def _resolve_symbol(symbol: str) -> str:
+    """한글 회사명이면 네이버 검색으로 종목코드 변환, 아니면 그대로 반환"""
+    if any('가' <= c <= '힣' for c in symbol):
+        try:
+            results = StockDataLoader.search_stock_naver(symbol)
+            if results:
+                code = results[0].get('symbol', '')
+                if code and code.isdigit():
+                    return code
+        except Exception:
+            pass
+    return symbol
+
+
 @router.get("/price")
 def get_price(symbol: str):
-    price = StockDataLoader.get_current_price(symbol)
+    actual = _resolve_symbol(symbol)
+    price = StockDataLoader.get_current_price(actual)
     prev_close = None
     try:
-        df = StockDataLoader.get_ohlcv(symbol, count=2)
+        df = StockDataLoader.get_ohlcv(actual, count=2)
         if df is not None and len(df) >= 2:
             prev_close = float(df.iloc[-2]["Close"])
     except Exception:
