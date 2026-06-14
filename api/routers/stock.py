@@ -23,7 +23,7 @@ router = APIRouter()
 
 @router.get("/ohlcv")
 def get_ohlcv(symbol: str, count: int = 900, period: str = "D"):
-    df = StockDataLoader.get_ohlcv(symbol, count, period)
+    df = StockDataLoader.get_ohlcv(_resolve_symbol(symbol), count, period)
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail="No data")
     df["Date"] = df["Date"].astype(str)
