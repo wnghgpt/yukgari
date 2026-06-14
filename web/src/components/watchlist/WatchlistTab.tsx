@@ -28,15 +28,19 @@ export function WatchlistTab({ currentSymbol }: Props) {
 
   const { subscribe } = usePriceSocket((sym, price) => setLivePrice(sym, price))
   useEffect(() => {
-    watchlist.forEach(item => {
-      subscribe(item.symbol)
-      if (prevCloses[item.symbol] == null || livePrices[item.symbol] == null) {
-        api.price(item.symbol).then(r => {
-          if (r.prev_close != null) setPrevClose(item.symbol, r.prev_close)
-          if (r.price != null) setLivePrice(item.symbol, r.price)
-        }).catch(() => {})
-      }
-    })
+    if (!watchlist.length) return
+    watchlist.forEach(item => subscribe(item.symbol))
+    const missing = watchlist
+      .filter(item => prevCloses[item.symbol] == null || livePrices[item.symbol] == null)
+      .map(item => item.symbol)
+    if (missing.length) {
+      api.prices(missing).then(results => {
+        results.forEach(r => {
+          if (r.prev_close != null) setPrevClose(r.symbol, r.prev_close)
+          if (r.price != null) setLivePrice(r.symbol, r.price)
+        })
+      }).catch(() => {})
+    }
   }, [watchlist, subscribe]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: searchResults = [] } = useQuery({

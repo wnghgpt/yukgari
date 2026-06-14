@@ -198,15 +198,16 @@ export function MyTab() {
     .filter(t => t.result === '감시' || t.result === '보유')
     .map(t => t.ticker)
 
-  // 감시+보유 종목 구독 및 초기 가격 로드
+  // 감시+보유 종목 구독 및 초기 가격 일괄 로드
   useEffect(() => {
-    activeTickers.forEach(sym => {
-      subscribe(sym)
-      api.price(sym).then(r => {
-        if (r.prev_close != null) setPrevClose(sym, r.prev_close)
-        if (r.price != null) setLivePrice(sym, r.price)
-      }).catch(() => {})
-    })
+    if (!activeTickers.length) return
+    activeTickers.forEach(sym => subscribe(sym))
+    api.prices(activeTickers).then(results => {
+      results.forEach(r => {
+        if (r.prev_close != null) setPrevClose(r.symbol, r.prev_close)
+        if (r.price != null) setLivePrice(r.symbol, r.price)
+      })
+    }).catch(() => {})
   }, [activeTickers.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = trades.filter(t => t.result === subTab)

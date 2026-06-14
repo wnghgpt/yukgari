@@ -1,51 +1,63 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 
 type PriceCallback = (symbol: string, price: number) => void
 
+// ── 모듈 레벨 싱글톤 WS ─────────────────────────────────────────
+const _callbacks  = new Set<PriceCallback>()
+const _pending    = new Set<string>()
+const _subscribed = new Set<string>()
+let   _ws: WebSocket | null = null
+
+function _connect() {
+  if (_ws && _ws.readyState !== WebSocket.CLOSED) return
+  _ws = new WebSocket(`ws://${location.host}/ws/price`)
+
+  _ws.onopen = () => {
+    _subscribed.forEach(sym =>
+      _ws!.send(JSON.stringify({ action: 'subscribe', symbol: sym }))
+    )
+    _pending.forEach(sym =>
+      _ws!.send(JSON.stringify({ action: 'subscribe', symbol: sym }))
+    )
+    _pending.clear()
+  }
+
+  _ws.onmessage = (e) => {
+    try {
+      const { symbol, price } = JSON.parse(e.data)
+      _callbacks.forEach(cb => cb(symbol, price))
+    } catch {}
+  }
+
+  _ws.onclose = () => {
+    _ws = null
+    setTimeout(_connect, 3000)
+  }
+}
+
+function _subscribe(symbol: string) {
+  _subscribed.add(symbol)
+  if (_ws?.readyState === WebSocket.OPEN) {
+    _ws.send(JSON.stringify({ action: 'subscribe', symbol }))
+  } else {
+    _pending.add(symbol)
+    _connect()
+  }
+}
+
+// ── hook ────────────────────────────────────────────────────────
 export function usePriceSocket(onPrice: PriceCallback) {
-  const wsRef    = useRef<WebSocket | null>(null)
-  const pendingRef = useRef<Set<string>>(new Set())
   const onPriceRef = useRef(onPrice)
   onPriceRef.current = onPrice
 
-  const subscribe = useCallback((symbol: string) => {
-    const ws = wsRef.current
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'subscribe', symbol }))
-    } else {
-      pendingRef.current.add(symbol)
-    }
-  }, [])
-
-  const unsubscribe = useCallback((symbol: string) => {
-    pendingRef.current.delete(symbol)
-    wsRef.current?.send(JSON.stringify({ action: 'unsubscribe', symbol }))
-  }, [])
-
   useEffect(() => {
-    const ws = new WebSocket(`ws://${location.host}/ws/price`)
-    wsRef.current = ws
-
-    ws.onopen = () => {
-      pendingRef.current.forEach(sym => {
-        ws.send(JSON.stringify({ action: 'subscribe', symbol: sym }))
-      })
-      pendingRef.current.clear()
-    }
-
-    ws.onmessage = (e) => {
-      try {
-        const { symbol, price } = JSON.parse(e.data)
-        onPriceRef.current(symbol, price)
-      } catch {}
-    }
-
-    ws.onclose = () => {
-      wsRef.current = null
-    }
-
-    return () => { ws.close() }
+    const cb: PriceCallback = (sym, price) => onPriceRef.current(sym, price)
+    _callbacks.add(cb)
+    _connect()
+    return () => { _callbacks.delete(cb) }
   }, [])
 
-  return { subscribe, unsubscribe }
+  const subscribe = useCallback((symbol: string) => _subscribe(symbol), [])
+
+  return { subscribe }
 }

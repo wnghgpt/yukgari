@@ -66,6 +66,30 @@ def get_price(symbol: str):
     return {"symbol": symbol, "price": price, "prev_close": prev_close}
 
 
+@router.get("/prices")
+def get_prices(symbols: str):
+    """콤마 구분 심볼 목록 일괄 현재가 조회"""
+    sym_list = [s.strip() for s in symbols.split(',') if s.strip()]
+    if not sym_list:
+        return []
+
+    def fetch_one(symbol: str):
+        actual = _resolve_symbol(symbol)
+        price = StockDataLoader.get_current_price(actual)
+        prev_close = None
+        try:
+            df = StockDataLoader.get_ohlcv(actual, count=2)
+            if df is not None and len(df) >= 2:
+                prev_close = float(df.iloc[-2]["Close"])
+        except Exception:
+            pass
+        return {"symbol": symbol, "price": price, "prev_close": prev_close}
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=min(len(sym_list), 8)) as ex:
+        return list(ex.map(fetch_one, sym_list))
+
+
 @router.get("/search")
 def search(q: str):
     if not q:

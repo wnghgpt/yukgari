@@ -19,6 +19,11 @@ export const api = {
   price: (symbol: string) =>
     get<{ symbol: string; price: number | null; prev_close: number | null }>('/price', { symbol }),
 
+  prices: (symbols: string[]) =>
+    get<{ symbol: string; price: number | null; prev_close: number | null }[]>(
+      '/prices', { symbols: symbols.join(',') }
+    ),
+
   search: (q: string) =>
     get<StockInfo[]>('/search', { q }),
 
