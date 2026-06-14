@@ -206,7 +206,8 @@ export function MyTab() {
   const [subTab, setSubTab] = useState<MySubTab>('감시')
   const {
     userId, symbol: currentSymbol,
-    setSymbol, livePrices, setLivePrice,
+    setSymbol, setRightTab,
+    livePrices, setLivePrice,
     prevCloses, setPrevClose,
   } = useAppStore()
 
@@ -277,7 +278,7 @@ export function MyTab() {
             currentPrice={livePrices[trade.ticker]}
             prevClose={prevCloses[trade.ticker]}
             isActive={trade.ticker === currentSymbol}
-            onClick={() => setSymbol(trade.ticker, trade.name ?? trade.ticker)}
+            onClick={() => { setSymbol(trade.ticker, trade.name ?? trade.ticker); setRightTab('journal') }}
           />
         ))}
       </div>

@@ -64,7 +64,8 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarW, setSidebarW] = useState(210)
   const [calcOpen, setCalcOpen] = useState(true)
-  const sidebarTab = useAppStore(s => s.sidebarTab)
+  const [calcW, setCalcW] = useState(320)
+  const { sidebarTab, rightTab, setRightTab } = useAppStore()
 
   // MY 탭 선택 시 사이드바 자동 확장
   useEffect(() => {
@@ -73,9 +74,6 @@ function AppContent() {
       setSidebarW(w => Math.max(w, 360))
     }
   }, [sidebarTab])
-  const [calcW, setCalcW] = useState(320)
-  const [journalOpen, setJournalOpen] = useState(true)
-  const [journalH, setJournalH] = useState(242)
 
   // 드래그 리사이즈 팩토리 (마우스 + 터치 공통)
   const startDrag = (
@@ -163,28 +161,27 @@ function AppContent() {
                 </button>
               </div>
 
-              <div className="calc-col" style={{ width: calcOpen ? calcW : 0, overflow: 'hidden' }}>
-                <Calculator />
+              <div className="calc-col" style={{ width: calcOpen ? calcW : 0 }}>
+                {/* 우측 패널 탭 */}
+                <div className="right-panel-tabs">
+                  <button
+                    className={`right-panel-tab ${rightTab === 'calc' ? 'active' : ''}`}
+                    onClick={() => setRightTab('calc')}
+                  >계산기</button>
+                  <button
+                    className={`right-panel-tab ${rightTab === 'journal' ? 'active' : ''}`}
+                    onClick={() => setRightTab('journal')}
+                  >일지</button>
+                </div>
+                <div className="right-panel-content">
+                  <div style={{ display: rightTab === 'calc' ? 'block' : 'none', height: '100%', overflowY: 'auto', padding: '10px 12px' }}>
+                    <Calculator />
+                  </div>
+                  <div style={{ display: rightTab === 'journal' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+                    <TradeJournal />
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* 일지 헤더 겸 분할선 */}
-            <div
-              className="journal-divider"
-              onMouseDown={journalOpen ? startDrag('y', journalH, setJournalH, 80, 500, true) : undefined}
-              onTouchStart={journalOpen ? startDrag('y', journalH, setJournalH, 80, 500, true) : undefined}
-            >
-              <span className="journal-divider-label">매매일지</span>
-              <button
-                className="panel-toggle-btn"
-                onClick={e => { e.stopPropagation(); setJournalOpen(o => !o) }}
-              >
-                {journalOpen ? '▼' : '▲'}
-              </button>
-            </div>
-
-            <div className="journal-row" style={{ height: journalOpen ? journalH : 0 }}>
-              <TradeJournal />
             </div>
           </div>
 

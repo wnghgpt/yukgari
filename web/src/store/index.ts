@@ -11,6 +11,10 @@ interface AppState {
   sidebarTab: SidebarTab
   setSidebarTab: (tab: SidebarTab) => void
 
+  // right panel tab (not persisted)
+  rightTab: 'calc' | 'journal'
+  setRightTab: (tab: 'calc' | 'journal') => void
+
   // chart
   symbol: string
   symbolName: string
@@ -54,6 +58,7 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       userId: null,
       sidebarTab: 'watchlist',
+      rightTab: 'calc',
       symbol: '005930',
       symbolName: '삼성전자',
       period: 'D',
@@ -67,6 +72,7 @@ export const useAppStore = create<AppState>()(
 
       setUserId: (id) => set({ userId: id }),
       setSidebarTab: (tab) => set({ sidebarTab: tab }),
+      setRightTab: (tab) => set({ rightTab: tab }),
       setSymbol: (symbol, name) => set({ symbol, symbolName: name ?? symbol }),
       setPeriod: (period) => set({ period }),
       setTotalAsset: (v) => set({ totalAsset: v }),
