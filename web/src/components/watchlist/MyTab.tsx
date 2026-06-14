@@ -94,12 +94,10 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
       <div className={`my-card ${isActive ? 'active' : ''}`} onClick={onClick}>
         <div className="my-card-body">
           <div className="my-card-left">
-            <div className="my-card-top">
+            <div className="my-watch-top">
               <span className="my-card-name">{trade.name ?? trade.ticker}</span>
-              <div className="my-card-meta">
-                <span className="my-card-pattern">{trade.pattern}</span>
-                <span className="my-card-days">D+{d}</span>
-              </div>
+              <span className="my-card-pattern">{trade.pattern}</span>
+              <span className="my-card-days">D+{d}</span>
             </div>
             <div className="my-card-price-wrap">
               {currentPrice != null
@@ -111,16 +109,10 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
                     )}</>
                 : <span className="my-card-price">—</span>}
             </div>
-            {(trade.channel_top || trade.channel_bottom) && (
-              <div className="my-card-levels">
-                {trade.channel_top && <span>저 {fmtLevel(trade.ticker, trade.channel_top)}</span>}
-                {trade.channel_bottom && <span>지 {fmtLevel(trade.ticker, trade.channel_bottom)}</span>}
-              </div>
-            )}
           </div>
           {entry1Pct != null && (
             <span className={`my-card-1ch ${entry1Pct >= 0 ? 'up' : 'down'}`}>
-              {fmtPct(entry1Pct)}
+              1차 {fmtPct(entry1Pct)}
             </span>
           )}
         </div>

@@ -518,6 +518,15 @@
 .my-card-bot-val.up   { color: #ef4444; }
 .my-card-bot-val.down { color: #3b82f6; }
 
+/* 감시 상단행: 종목명 패턴 D+n 한 줄 */
+.my-watch-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
 /* 감시 카드 2단 레이아웃 */
 .my-card-body {
   display: flex;
