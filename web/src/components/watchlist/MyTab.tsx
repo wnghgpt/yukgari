@@ -78,10 +78,12 @@ interface CardProps {
 }
 
 function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }: CardProps) {
+  const name = trade.name ?? trade.ticker
   const changePct =
     currentPrice != null && prevClose != null && prevClose > 0
       ? ((currentPrice - prevClose) / prevClose) * 100
       : null
+  const priceStr = currentPrice != null ? fmtPrice(trade.ticker, currentPrice) : '—'
 
   if (subTab === '감시') {
     const d = daysSince(trade.date)
@@ -92,30 +94,24 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
 
     return (
       <div className={`my-card ${isActive ? 'active' : ''}`} onClick={onClick}>
-        <div className="my-card-body">
-          <div className="my-card-left">
-            <div className="my-watch-top">
-              <span className="my-card-name">{trade.name ?? trade.ticker}</span>
-              <span className="my-card-pattern">{trade.pattern}</span>
-              <span className="my-card-days">D+{d}</span>
-            </div>
-            <div className="my-card-price-wrap">
-              {currentPrice != null
-                ? <><span className="my-card-price">{fmtPrice(trade.ticker, currentPrice)}</span>
-                    {changePct != null && (
-                      <span className={`my-card-change ${changePct >= 0 ? 'up' : 'down'}`}>
-                        {fmtPct(changePct)}
-                      </span>
-                    )}</>
-                : <span className="my-card-price">—</span>}
-            </div>
+        <div className="my-card-row">
+          <div className="my-card-info">
+            <span className="my-card-name">{name}</span>
+            <span className="my-card-pattern">{trade.pattern}</span>
+            <span className="my-card-days">D+{d}</span>
           </div>
-          {entry1Pct != null && (
-            <span className={`my-card-1ch ${entry1Pct >= 0 ? 'up' : 'down'}`}>
-              1차 {fmtPct(entry1Pct)}
-            </span>
-          )}
+          <span className="my-card-price">{priceStr}</span>
         </div>
+        {(changePct != null || entry1Pct != null) && (
+          <div className="my-card-sub">
+            {changePct != null && (
+              <span className={`my-card-sub-item ${changePct >= 0 ? 'up' : 'down'}`}>{fmtPct(changePct)}</span>
+            )}
+            {entry1Pct != null && (
+              <span className={`my-card-sub-item ${entry1Pct >= 0 ? 'up' : 'down'}`}>1차 {fmtPct(entry1Pct)}</span>
+            )}
+          </div>
+        )}
       </div>
     )
   }
@@ -133,52 +129,25 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
 
     return (
       <div className={`my-card ${isActive ? 'active' : ''}`} onClick={onClick}>
-        <div className="my-card-top">
-          <span className="my-card-name">{trade.name ?? trade.ticker}</span>
-          <div className="my-card-meta">
+        <div className="my-card-row">
+          <div className="my-card-info">
+            <span className="my-card-name">{name}</span>
             <span className="my-card-pattern">{trade.pattern}</span>
             <span className="my-card-days">D+{d}</span>
           </div>
+          <span className="my-card-price">{priceStr}</span>
         </div>
-        <div className="my-card-mid">
-          <div className="my-card-price-wrap">
-            {currentPrice != null
-              ? <><span className="my-card-price">{fmtPrice(trade.ticker, currentPrice)}</span>
-                  {changePct != null && (
-                    <span className={`my-card-change ${changePct >= 0 ? 'up' : 'down'}`}>
-                      {fmtPct(changePct)}
-                    </span>
-                  )}</>
-              : <span className="my-card-price">—</span>}
-          </div>
+        <div className="my-card-sub">
           {returnPct != null && (
-            <span className={`my-card-right-val ${returnPct >= 0 ? 'up' : 'down'}`}>
-              {fmtPct(returnPct)}
-            </span>
+            <span className={`my-card-sub-item ${returnPct >= 0 ? 'up' : 'down'}`}>수익 {fmtPct(returnPct)}</span>
+          )}
+          {next && nextPct != null && (
+            <span className={`my-card-sub-item ${nextPct >= 0 ? 'up' : 'down'}`}>{next.tier}차 {fmtPct(nextPct)}</span>
+          )}
+          {slPct != null && (
+            <span className="my-card-sub-item down">손절 {fmtPct(slPct)}</span>
           )}
         </div>
-        <div className="my-card-bot">
-          <span className="my-card-bot-item">
-            {next ? `${next.tier}차 ` : '다음 차수 없음'}
-            {nextPct != null && (
-              <span className={`my-card-bot-val ${nextPct >= 0 ? 'up' : 'down'}`}>
-                {fmtPct(nextPct)}
-              </span>
-            )}
-          </span>
-          <span className="my-card-bot-item">
-            손절{' '}
-            {slPct != null && (
-              <span className="my-card-bot-val down">{fmtPct(slPct)}</span>
-            )}
-          </span>
-        </div>
-        {(trade.channel_top || trade.channel_bottom) && (
-          <div className="my-card-levels">
-            {trade.channel_top && <span>저 {fmtLevel(trade.ticker, trade.channel_top)}</span>}
-            {trade.channel_bottom && <span>지 {fmtLevel(trade.ticker, trade.channel_bottom)}</span>}
-          </div>
-        )}
       </div>
     )
   }
@@ -192,18 +161,16 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
 
   return (
     <div className={`my-card ${isActive ? 'active' : ''}`} onClick={onClick}>
-      <div className="my-card-top">
-        <span className="my-card-name">{trade.name ?? trade.ticker}</span>
-        <span className="my-card-pattern">{trade.pattern}</span>
-      </div>
-      <div className="my-card-mid">
+      <div className="my-card-row">
+        <div className="my-card-info">
+          <span className="my-card-name">{name}</span>
+          <span className="my-card-pattern">{trade.pattern}</span>
+          {holdDays != null && (
+            <span className="my-card-days">{holdDays}일</span>
+          )}
+        </div>
         {returnPct != null && (
-          <span className={`my-card-right-val ${returnPct >= 0 ? 'up' : 'down'}`}>
-            {fmtPct(returnPct)}
-          </span>
-        )}
-        {holdDays != null && (
-          <span className="my-card-days">{holdDays}일 보유</span>
+          <span className={`my-card-price ${returnPct >= 0 ? 'up' : 'down'}`}>{fmtPct(returnPct)}</span>
         )}
       </div>
     </div>
