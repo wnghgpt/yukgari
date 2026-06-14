@@ -517,3 +517,40 @@
 
 .my-card-bot-val.up   { color: #ef4444; }
 .my-card-bot-val.down { color: #3b82f6; }
+
+/* 감시 카드 2단 레이아웃 */
+.my-card-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.my-card-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* 1차 % 우측 크게 */
+.my-card-1ch {
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 54px;
+  letter-spacing: -0.3px;
+}
+
+.my-card-1ch.up   { color: #ef4444; }
+.my-card-1ch.down { color: #3b82f6; }
+
+/* 저항/지지선 행 */
+.my-card-levels {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 2px;
+}

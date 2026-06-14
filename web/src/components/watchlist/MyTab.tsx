@@ -14,6 +14,10 @@ function fmtPrice(sym: string, price: number): string {
   return isOverseas(sym) ? `$${price.toFixed(2)}` : price.toLocaleString()
 }
 
+function fmtLevel(sym: string, price: number): string {
+  return isOverseas(sym) ? `$${price.toFixed(0)}` : Math.round(price).toLocaleString()
+}
+
 function fmtPct(val: number): string {
   return `${val >= 0 ? '+' : ''}${val.toFixed(1)}%`
 }
@@ -88,27 +92,35 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
 
     return (
       <div className={`my-card ${isActive ? 'active' : ''}`} onClick={onClick}>
-        <div className="my-card-top">
-          <span className="my-card-name">{trade.name ?? trade.ticker}</span>
-          <div className="my-card-meta">
-            <span className="my-card-pattern">{trade.pattern}</span>
-            <span className="my-card-days">D+{d}</span>
-          </div>
-        </div>
-        <div className="my-card-mid">
-          <div className="my-card-price-wrap">
-            {currentPrice != null
-              ? <><span className="my-card-price">{fmtPrice(trade.ticker, currentPrice)}</span>
-                  {changePct != null && (
-                    <span className={`my-card-change ${changePct >= 0 ? 'up' : 'down'}`}>
-                      {fmtPct(changePct)}
-                    </span>
-                  )}</>
-              : <span className="my-card-price">—</span>}
+        <div className="my-card-body">
+          <div className="my-card-left">
+            <div className="my-card-top">
+              <span className="my-card-name">{trade.name ?? trade.ticker}</span>
+              <div className="my-card-meta">
+                <span className="my-card-pattern">{trade.pattern}</span>
+                <span className="my-card-days">D+{d}</span>
+              </div>
+            </div>
+            <div className="my-card-price-wrap">
+              {currentPrice != null
+                ? <><span className="my-card-price">{fmtPrice(trade.ticker, currentPrice)}</span>
+                    {changePct != null && (
+                      <span className={`my-card-change ${changePct >= 0 ? 'up' : 'down'}`}>
+                        {fmtPct(changePct)}
+                      </span>
+                    )}</>
+                : <span className="my-card-price">—</span>}
+            </div>
+            {(trade.channel_top || trade.channel_bottom) && (
+              <div className="my-card-levels">
+                {trade.channel_top && <span>저 {fmtLevel(trade.ticker, trade.channel_top)}</span>}
+                {trade.channel_bottom && <span>지 {fmtLevel(trade.ticker, trade.channel_bottom)}</span>}
+              </div>
+            )}
           </div>
           {entry1Pct != null && (
-            <span className={`my-card-right-val ${entry1Pct >= 0 ? 'up' : 'down'}`}>
-              1차 {fmtPct(entry1Pct)}
+            <span className={`my-card-1ch ${entry1Pct >= 0 ? 'up' : 'down'}`}>
+              {fmtPct(entry1Pct)}
             </span>
           )}
         </div>
@@ -169,6 +181,12 @@ function TradeCard({ trade, subTab, currentPrice, prevClose, isActive, onClick }
             )}
           </span>
         </div>
+        {(trade.channel_top || trade.channel_bottom) && (
+          <div className="my-card-levels">
+            {trade.channel_top && <span>저 {fmtLevel(trade.ticker, trade.channel_top)}</span>}
+            {trade.channel_bottom && <span>지 {fmtLevel(trade.ticker, trade.channel_bottom)}</span>}
+          </div>
+        )}
       </div>
     )
   }

@@ -347,6 +347,11 @@ export function ChartView() {
           const p = absXY(tradeBarIndex + 30, trade.target_price)
           if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
         }
+        // 저항선/목표가 없으면 1차 진입가를 끝점으로 대체
+        if (pathPts.length < 2 && trade.entry1_price) {
+          const p = absXY(tradeBarIndex + 5, trade.entry1_price)
+          if (p.x != null && p.y != null) pathPts.push({ x: p.x, y: p.y })
+        }
 
         if (pathPts.length >= 2) {
           ctx.save()
@@ -614,7 +619,12 @@ export function ChartView() {
     const trades = queryClient.getQueryData<JournalTrade[]>(['journal', userId])
     const trade = trades?.find(t => String(t.id) === String(selectedTradeId))
     if (!trade) { tradeScenarioRef.current = null; drawFnRef.current(); return }
-    const barIndex = data.findIndex(b => (b.Date as string) === trade.date)
+    let barIndex = data.findIndex(b => (b.Date as string) === trade.date)
+    if (barIndex < 0) {
+      // trade.date가 주말/공휴일이면 이전 가장 가까운 거래일 사용
+      const rev = [...data].reverse().findIndex(b => (b.Date as string) <= trade.date)
+      barIndex = rev >= 0 ? data.length - 1 - rev : -1
+    }
     if (barIndex < 0) { tradeScenarioRef.current = null; drawFnRef.current(); return }
     tradeScenarioRef.current = { trade, tradeBarIndex: barIndex, startPrice: data[barIndex].Close }
     drawFnRef.current()
