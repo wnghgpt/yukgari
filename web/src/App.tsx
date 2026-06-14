@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ChartView } from './components/chart/ChartView'
 import { Watchlist } from './components/watchlist/Watchlist'
 import { Calculator } from './components/calculator/Calculator'
-import { TradeJournal } from './components/journal/TradeJournal'
+import { TradeDetail } from './components/journal/TradeDetail'
 import { useAppStore } from './store'
 import './App.css'
 
@@ -178,7 +178,7 @@ function AppContent() {
                     <Calculator />
                   </div>
                   <div style={{ display: rightTab === 'journal' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
-                    <TradeJournal />
+                    <TradeDetail />
                   </div>
                 </div>
               </div>

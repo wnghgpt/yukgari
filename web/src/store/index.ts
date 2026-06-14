@@ -15,6 +15,10 @@ interface AppState {
   rightTab: 'calc' | 'journal'
   setRightTab: (tab: 'calc' | 'journal') => void
 
+  // selected trade for detail view
+  selectedTradeId: string | null
+  setSelectedTradeId: (id: string | null) => void
+
   // chart
   symbol: string
   symbolName: string
@@ -59,6 +63,7 @@ export const useAppStore = create<AppState>()(
       userId: null,
       sidebarTab: 'watchlist',
       rightTab: 'calc',
+      selectedTradeId: null,
       symbol: '005930',
       symbolName: '삼성전자',
       period: 'D',
@@ -73,6 +78,7 @@ export const useAppStore = create<AppState>()(
       setUserId: (id) => set({ userId: id }),
       setSidebarTab: (tab) => set({ sidebarTab: tab }),
       setRightTab: (tab) => set({ rightTab: tab }),
+      setSelectedTradeId: (id) => set({ selectedTradeId: id }),
       setSymbol: (symbol, name) => set({ symbol, symbolName: name ?? symbol }),
       setPeriod: (period) => set({ period }),
       setTotalAsset: (v) => set({ totalAsset: v }),
