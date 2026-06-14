@@ -53,6 +53,8 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_prewarm_ranking_cache())
     from api.services.telegram_bot import poll_loop as _bot_poll
     asyncio.create_task(_bot_poll())
+    from api.services.kis_sync import daily_sync_loop as _sync_loop
+    asyncio.create_task(_sync_loop())
     yield
 
 

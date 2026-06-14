@@ -68,12 +68,21 @@ export interface ScenarioData {
   avgPrice: number
 }
 
+export interface TradeExecution {
+  tier: number
+  date: string
+  price: number
+  qty: number
+  type: 'buy' | 'sell'
+}
+
 export interface JournalTrade {
   id: string
   date: string
   exit_date?: string
   ticker: string
   name?: string
+  executions?: TradeExecution[]
   pattern: string
   stages: number
   channel_top?: number

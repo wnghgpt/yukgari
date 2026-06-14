@@ -161,6 +161,17 @@ class SupabaseDB:
             return []
 
     @staticmethod
+    def fetch_all_users() -> list:
+        if not SupabaseDB.is_connected():
+            return []
+        try:
+            r = supabase.table("users").select("id").execute()
+            return r.data or []
+        except Exception as e:
+            print(f"DB Fetch All Users Error: {e}")
+            return []
+
+    @staticmethod
     def insert_watchlist(stock_code, stock_name, market_type, user_id: str):
         """관심 종목 추가"""
         if not SupabaseDB.is_connected():
