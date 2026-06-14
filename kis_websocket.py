@@ -41,17 +41,17 @@ class KISWebSocket:
         if not self.websocket or not self.is_running:
             print("웹소켓이 연결되어 있지 않습니다.")
             return False
-            
+
         payload = {
             "header": {
                 "approval_key": self.approval_key,
                 "custtype": "P",
-                "tr_type": "1",  # 1: 등록, 0: 해제
+                "tr_type": "1",
                 "content-type": "utf-8"
             },
             "body": {
                 "input": {
-                    "tr_id": "H0UNCNT0",  # 통합 실시간 체결가 (KRX+NXT)
+                    "tr_id": "H0UNCNT0",
                     "tr_key": symbol
                 }
             }
@@ -64,34 +64,72 @@ class KISWebSocket:
             print(f"Subscribe Error for {symbol}: {e}")
             return False
 
-    async def receive_loop(self, callback=None):
+    async def subscribe_fills(self, account_no: str):
+        """체결 통보 구독 (H0STCNI0) — TR_KEY = 계좌번호 앞 8자리"""
+        if not self.websocket or not self.is_running:
+            return False
+        cano = account_no.split("-")[0]
+        payload = {
+            "header": {
+                "approval_key": self.approval_key,
+                "custtype": "P",
+                "tr_type": "1",
+                "content-type": "utf-8"
+            },
+            "body": {
+                "input": {
+                    "tr_id": "H0STCNI0",
+                    "tr_key": cano
+                }
+            }
+        }
+        try:
+            await self.websocket.send(json.dumps(payload))
+            print(f"[KIS] 체결통보 구독: 계좌 {cano}")
+            return True
+        except Exception as e:
+            print(f"[KIS] 체결통보 구독 오류: {e}")
+            return False
+
+    async def receive_loop(self, callback=None, fill_callback=None):
         """실시간 데이터 수신 무한 루프"""
         while self.is_running:
             try:
                 message = await self.websocket.recv()
-                
-                # JSON 형식의 등록 응답 수신인 경우
+
+                # JSON 형식의 등록 응답
                 if message.startswith("{"):
                     data = json.loads(message)
                     print(f"Response received: {data.get('body', {}).get('msg1')}")
                     continue
-                    
-                # 파이프(|) 구분 데이터 파싱
+
                 parts = message.split("|")
-                if len(parts) >= 4 and parts[1] in ("H0STCNT0", "H0UNCNT0"):
-                    # parts[0]: 암호화 유무, parts[1]: TR_ID, parts[2]: 건수, parts[3]: 데이터
-                    data_str = parts[3]
-                    data_fields = data_str.split("^")
-                    
+                if len(parts) < 4:
+                    continue
+
+                tr_id = parts[1]
+                data_fields = parts[3].split("^")
+
+                # 실시간 시세 (H0STCNT0 / H0UNCNT0)
+                if tr_id in ("H0STCNT0", "H0UNCNT0"):
                     if len(data_fields) >= 3:
                         code = data_fields[0]
-                        # time_str = data_fields[1]
                         price = int(data_fields[2])
-                        
                         if callback:
                             await callback(code, price)
+
+                # 체결 통보 (H0STCNI0)
+                elif tr_id == "H0STCNI0":
+                    if len(data_fields) >= 12:
+                        # field index: 4=매수매도구분(1매도/2매수), 8=종목코드, 9=체결수량, 10=체결단가
+                        sll_buy = data_fields[4].strip()   # "1"=매도 "2"=매수
+                        ticker  = data_fields[8].strip()
+                        qty     = int(data_fields[9] or 0)
+                        price   = float(data_fields[10] or 0)
+                        if fill_callback and ticker and qty > 0 and price > 0:
+                            await fill_callback(ticker, qty, price, sll_buy)
                         else:
-                            print(f"[{code}] 실시간 체결가: {price:,}원")
+                            print(f"[체결통보] {ticker} {'매수' if sll_buy=='2' else '매도'} {qty}주 @ {price}")
                             
             except websockets.ConnectionClosed:
                 print("WebSocket Connection Closed. Reconnecting...")

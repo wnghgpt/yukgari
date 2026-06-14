@@ -206,6 +206,44 @@ def _determine_close_result(trade: dict, executions: list) -> Optional[str]:
     return "수익" if avg_sell >= avg_buy else "손절"
 
 
+# ── WebSocket 즉시 반영 ──────────────────────────────────────────────
+
+async def apply_fill_to_journal(ticker: str, qty: int, price: float, sll_buy: str):
+    """체결 통보 수신 즉시 호출 — 해당 ticker의 모든 유저 일지 업데이트"""
+    from supabase_db import SupabaseDB
+
+    users = await asyncio.to_thread(SupabaseDB.fetch_all_users)
+    today_str = date.today().strftime("%Y-%m-%d")
+
+    for user in users:
+        user_id = user["id"]
+        trades = await asyncio.to_thread(SupabaseDB.fetch_trades, user_id)
+        active = [t for t in trades if t.get("result") in ("감시", "보유")
+                  and t.get("ticker") == ticker]
+        if not active:
+            continue
+
+        trade = sorted(active, key=lambda x: x.get("date", ""), reverse=True)[0]
+        trade_id = str(trade["id"])
+        executions = list(trade.get("executions") or [])
+
+        if sll_buy == "2":  # 매수
+            _apply_buy(trade, executions, price, qty, today_str)
+            new_result = "보유" if trade.get("result") == "감시" else None
+        else:  # 매도
+            _apply_sell(trade, executions, price, qty, today_str)
+            new_result = _determine_close_result(trade, executions)
+
+        fields: dict = {"executions": executions}
+        if new_result and new_result != trade.get("result"):
+            fields["result"] = new_result
+            if new_result in ("수익", "손절"):
+                fields["exit_date"] = today_str
+
+        await asyncio.to_thread(SupabaseDB.update_trade, trade_id, fields)
+        print(f"[Fill] {ticker} 즉시 반영: user={user_id} → {new_result or trade.get('result')}")
+
+
 # ── 스케줄 루프 ──────────────────────────────────────────────────────
 
 async def daily_sync_loop():

@@ -47,6 +47,8 @@ async def lifespan(app: FastAPI):
         symbols = {t["ticker"] for t in trades if t.get("result") in WATCH_RESULTS}
         for sym in symbols:
             asyncio.create_task(backend_subscribe(sym))
+        from api.ws.price import subscribe_fill_notifications
+        asyncio.create_task(subscribe_fill_notifications())
     except Exception as e:
         print(f"[Alert] 시작 로드 오류: {e}")
     asyncio.create_task(_daily_summary_loop())

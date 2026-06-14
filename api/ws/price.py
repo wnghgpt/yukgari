@@ -20,6 +20,25 @@ async def backend_subscribe(symbol: str):
         print(f"[Alert] KIS 백엔드 구독: {symbol}")
 
 
+async def subscribe_fill_notifications():
+    """체결 통보 구독 (H0STCNI0) — 서버 시작 시 1회 호출"""
+    from config import KIS_SESSIONS
+    if not KIS_SESSIONS:
+        return
+    kis = await _get_kis_ws()
+    if kis:
+        await kis.subscribe_fills(KIS_SESSIONS[0]["acc_no"])
+
+
+async def _fill_callback(ticker: str, qty: int, price: float, sll_buy: str):
+    """체결 통보 수신 → 일지 즉시 업데이트"""
+    try:
+        from api.services.kis_sync import apply_fill_to_journal
+        await apply_fill_to_journal(ticker, qty, price, sll_buy)
+    except Exception as e:
+        print(f"[Fill] 일지 업데이트 오류: {e}")
+
+
 async def _get_kis_ws():
     global _kis_ws
     async with _kis_lock:
@@ -58,7 +77,7 @@ async def _broadcast(symbol: str, price: int):
 async def _receive_loop():
     global _kis_ws
     if _kis_ws:
-        await _kis_ws.receive_loop(callback=_broadcast)
+        await _kis_ws.receive_loop(callback=_broadcast, fill_callback=_fill_callback)
 
 
 @router.websocket("/ws/price")
