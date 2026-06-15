@@ -159,6 +159,7 @@ async def _send_user_daily_summary(user: dict, StockDataLoader):
 
     for idx, trade in enumerate(watch_trades, 1):
         ticker = trade["ticker"]
+        name = trade.get("name") or ticker
         pattern = trade.get("pattern", "")
 
         # D+n
@@ -206,7 +207,7 @@ async def _send_user_daily_summary(user: dict, StockDataLoader):
 
         lines += [
             div,
-            f"{idx}. <b>{ticker}</b> | {pattern} {d_str}",
+            f"{idx}. <b>{name}</b> ({ticker}) | {pattern} {d_str}",
             f"   현재가 {price_str}{gap_str}",
             f"   매수: {entry_str}",
             f"   {loss_str}손절 {sl_str} | 목표 {tgt_str}",
