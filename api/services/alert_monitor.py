@@ -21,6 +21,7 @@ class Alert:
     stop_loss: float
     target_price: float
     user_id: str = ""
+    name: str = ""
     triggered: set[str] = field(default_factory=set)  # "entry_0", "stop", "target"
 
 
@@ -49,8 +50,9 @@ def register_alert(trade: dict):
     if not entries and sl == 0 and tgt == 0:
         return
 
-    uid = str(trade.get("user_id") or "")
-    alert = Alert(trade_id=tid, ticker=ticker, entry_prices=entries, stop_loss=sl, target_price=tgt, user_id=uid)
+    uid  = str(trade.get("user_id") or "")
+    name = str(trade.get("name") or ticker)
+    alert = Alert(trade_id=tid, ticker=ticker, entry_prices=entries, stop_loss=sl, target_price=tgt, user_id=uid, name=name)
     _alerts.setdefault(ticker, [])
     _alerts[ticker] = [a for a in _alerts[ticker] if a.trade_id != tid]  # 중복 방지
     _alerts[ticker].append(alert)
@@ -191,7 +193,7 @@ def _ind_lines(ind: dict) -> str:
 
 def _msg_entry(alert: Alert, nth: int, ep: float, price: float, ind: dict) -> str:
     return (
-        f"🟡 <b>{alert.ticker}</b> — {nth}차 진입가 근접\n"
+        f"🟡 <b>{alert.name}</b> — {nth}차 진입가 근접\n"
         f"현재가: {_fmt(alert.ticker, price)}\n"
         f"진입가: {_fmt(alert.ticker, ep)}\n"
         f"{_ind_lines(ind)}\n"
@@ -203,7 +205,7 @@ def _msg_entry(alert: Alert, nth: int, ep: float, price: float, ind: dict) -> st
 
 def _msg_stop(alert: Alert, price: float, ind: dict) -> str:
     return (
-        f"🔴 <b>{alert.ticker}</b> — 손절가 도달\n"
+        f"🔴 <b>{alert.name}</b> — 손절가 도달\n"
         f"현재가: {_fmt(alert.ticker, price)}\n"
         f"손절가: {_fmt(alert.ticker, alert.stop_loss)}\n"
         f"{_ind_lines(ind)}"
@@ -212,7 +214,7 @@ def _msg_stop(alert: Alert, price: float, ind: dict) -> str:
 
 def _msg_target(alert: Alert, price: float, ind: dict) -> str:
     return (
-        f"🟢 <b>{alert.ticker}</b> — 목표가 도달\n"
+        f"🟢 <b>{alert.name}</b> — 목표가 도달\n"
         f"현재가: {_fmt(alert.ticker, price)}\n"
         f"목표가: {_fmt(alert.ticker, alert.target_price)}\n"
         f"{_ind_lines(ind)}"
