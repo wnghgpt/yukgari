@@ -58,7 +58,7 @@ const BASE_CHART_OPTS = {
     horzLines: { color: 'rgba(42,46,57,0.5)' },
   },
   crosshair: { mode: 0 },
-  timeScale: { borderColor: 'rgba(197,203,206,0.8)', rightOffset: 40, barSpacing: 8 },
+  timeScale: { borderColor: 'rgba(197,203,206,0.8)', rightOffset: 40, barSpacing: 16 },
 }
 
 function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
