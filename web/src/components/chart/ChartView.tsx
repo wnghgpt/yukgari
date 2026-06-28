@@ -51,6 +51,21 @@ function calcRsi(closes: number[], period = 14): (number | null)[] {
   return out
 }
 
+function calcIchimoku(data: Array<{ High: number; Low: number }>) {
+  const N = data.length
+  const out: Array<{ logical: number; spanA: number; spanB: number }> = []
+  for (let i = 51; i < N; i++) {
+    let h9 = -Infinity, l9 = Infinity, h26 = -Infinity, l26 = Infinity, h52 = -Infinity, l52 = Infinity
+    for (let j = i - 8;  j <= i; j++) { h9  = Math.max(h9,  data[j].High); l9  = Math.min(l9,  data[j].Low) }
+    for (let j = i - 25; j <= i; j++) { h26 = Math.max(h26, data[j].High); l26 = Math.min(l26, data[j].Low) }
+    for (let j = i - 51; j <= i; j++) { h52 = Math.max(h52, data[j].High); l52 = Math.min(l52, data[j].Low) }
+    const spanA = ((h9 + l9) / 2 + (h26 + l26) / 2) / 2
+    const spanB = (h52 + l52) / 2
+    out.push({ logical: i + 26, spanA, spanB })
+  }
+  return out
+}
+
 const BASE_CHART_OPTS = {
   layout: { background: { color: '#131722' }, textColor: '#d1d4dc', fontSize: 9 },
   grid: {
@@ -114,10 +129,13 @@ export function ChartView() {
   const crosshairBtnRef   = useRef<HTMLDivElement>(null)
   const crosshairPriceRef = useRef<number | null>(null)
   const displayPriceRef   = useRef<number | null>(null)
+  const showIchimokuRef   = useRef(false)
+  const ichimokuDataRef   = useRef<Array<{ logical: number; spanA: number; spanB: number }>>([])
 
   const [count, setCount] = useState(900)
   const [showRsi, setShowRsi] = useState(true)
   const [showMa,  setShowMa]  = useState(true)
+  const [showIchimoku, setShowIchimoku] = useState(false)
   const [drawingMode, setDrawingModeState] = useState<'none' | 'segment'>('none')
   const setDrawingMode = (m: 'none' | 'segment') => {
     drawingModeRef.current = m
@@ -257,6 +275,43 @@ export function ChartView() {
         x: ts.logicalToCoordinate((lastLogical + barOffset) as unknown as Logical) as number | null,
         y: ser.candle.priceToCoordinate(price)             as number | null,
       })
+
+      if (showIchimokuRef.current && ichimokuDataRef.current.length > 1) {
+        const ipts = ichimokuDataRef.current
+        ctx.save()
+        for (let i = 0; i < ipts.length - 1; i++) {
+          const x1  = ts.logicalToCoordinate(ipts[i].logical     as unknown as Logical) as number | null
+          const x2  = ts.logicalToCoordinate(ipts[i + 1].logical as unknown as Logical) as number | null
+          const yA1 = ser.candle.priceToCoordinate(ipts[i].spanA)     as number | null
+          const yB1 = ser.candle.priceToCoordinate(ipts[i].spanB)     as number | null
+          const yA2 = ser.candle.priceToCoordinate(ipts[i + 1].spanA) as number | null
+          const yB2 = ser.candle.priceToCoordinate(ipts[i + 1].spanB) as number | null
+          if (x1 == null || x2 == null || yA1 == null || yB1 == null || yA2 == null || yB2 == null) continue
+          ctx.fillStyle = ipts[i].spanA >= ipts[i].spanB ? 'rgba(0,188,112,0.12)' : 'rgba(239,83,80,0.12)'
+          ctx.beginPath()
+          ctx.moveTo(x1, yA1); ctx.lineTo(x2, yA2); ctx.lineTo(x2, yB2); ctx.lineTo(x1, yB1)
+          ctx.closePath(); ctx.fill()
+        }
+        ctx.strokeStyle = 'rgba(0,188,112,0.8)'; ctx.lineWidth = 1; ctx.beginPath()
+        let first = true
+        for (const pt of ipts) {
+          const x = ts.logicalToCoordinate(pt.logical as unknown as Logical) as number | null
+          const y = ser.candle.priceToCoordinate(pt.spanA) as number | null
+          if (x == null || y == null) { first = true; continue }
+          if (first) { ctx.moveTo(x, y); first = false } else ctx.lineTo(x, y)
+        }
+        ctx.stroke()
+        ctx.strokeStyle = 'rgba(239,83,80,0.8)'; ctx.beginPath()
+        first = true
+        for (const pt of ipts) {
+          const x = ts.logicalToCoordinate(pt.logical as unknown as Logical) as number | null
+          const y = ser.candle.priceToCoordinate(pt.spanB) as number | null
+          if (x == null || y == null) { first = true; continue }
+          if (first) { ctx.moveTo(x, y); first = false } else ctx.lineTo(x, y)
+        }
+        ctx.stroke()
+        ctx.restore()
+      }
 
       if (sc) {
         // 경로 (꺾인선 + 화살표)
@@ -785,6 +840,8 @@ export function ChartView() {
     rsi70.setData(times.map(t => ({ time: t, value: 70 })))
     rsi30.setData(times.map(t => ({ time: t, value: 30 })))
 
+    ichimokuDataRef.current = calcIchimoku(data)
+
     chartRef.current.main?.timeScale().scrollToRealTime()
 
     if (data.length >= 2) {
@@ -797,6 +854,12 @@ export function ChartView() {
     if (!s.current) return
     for (const p of MA_PERIODS) s.current.mas[p]?.applyOptions({ visible: showMa })
   }, [showMa])
+
+  // ── 일목 toggle ──
+  useEffect(() => {
+    showIchimokuRef.current = showIchimoku
+    drawFnRef.current()
+  }, [showIchimoku])
 
   // ── 시나리오 price lines (LW-charts, display only) ──
   useEffect(() => {
@@ -906,6 +969,10 @@ export function ChartView() {
           <label className="toggle-label">
             <input type="checkbox" checked={showRsi} onChange={e => setShowRsi(e.target.checked)} />
             RSI
+          </label>
+          <label className="toggle-label">
+            <input type="checkbox" checked={showIchimoku} onChange={e => setShowIchimoku(e.target.checked)} />
+            일목
           </label>
           <div className="draw-buttons">
             <button
