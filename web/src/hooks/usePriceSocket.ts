@@ -36,6 +36,7 @@ function _connect() {
 }
 
 function _subscribe(symbol: string) {
+  if (_subscribed.has(symbol)) return
   _subscribed.add(symbol)
   if (_ws?.readyState === WebSocket.OPEN) {
     _ws.send(JSON.stringify({ action: 'subscribe', symbol }))
