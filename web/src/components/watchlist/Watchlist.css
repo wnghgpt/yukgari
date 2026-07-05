@@ -165,6 +165,17 @@
   padding: 20px 8px;
 }
 
+.wl-drag-handle {
+  color: #555;
+  cursor: grab;
+  font-size: 14px;
+  padding: 0 2px;
+  flex-shrink: 0;
+  user-select: none;
+  line-height: 1;
+}
+.wl-drag-handle:active { cursor: grabbing; }
+
 .wl-item {
   display: flex;
   align-items: center;

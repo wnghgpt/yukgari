@@ -1,9 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useAppStore } from '../../store'
 import { useWatchlist } from '../../hooks/useWatchlist'
 import { usePriceSocket } from '../../hooks/usePriceSocket'
 import { api } from '../../api/stock'
+import type { WatchlistItem } from '../../types'
 
 type MarketFilter = 'all' | 'KR' | 'US'
 
@@ -17,6 +33,79 @@ interface Props {
   currentSymbol: string
 }
 
+function SortableItem({
+  item,
+  currentSymbol,
+  livePrices,
+  prevCloses,
+  onSelect,
+  onToggle,
+}: {
+  item: WatchlistItem
+  currentSymbol: string
+  livePrices: Record<string, number>
+  prevCloses: Record<string, number>
+  onSelect: () => void
+  onToggle: (e: React.MouseEvent) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.symbol })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const isOverseas = !/^\d+$/.test(item.symbol)
+  const price     = livePrices[item.symbol] ?? item.price
+  const prevClose = prevCloses[item.symbol]
+  const changePct = price != null && prevClose != null && prevClose > 0
+    ? ((price - prevClose) / prevClose) * 100
+    : null
+  const formatPrice = (p?: number) =>
+    p == null ? '—' : isOverseas ? `$${p.toFixed(2)}` : p.toLocaleString()
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`wl-item ${item.symbol === currentSymbol ? 'active' : ''}`}
+      onClick={onSelect}
+    >
+      <span
+        className="wl-drag-handle"
+        {...attributes}
+        {...listeners}
+        onClick={e => e.stopPropagation()}
+      >
+        ⠿
+      </span>
+      <span className="wl-flag">{isOverseas ? '🇺🇸' : '🇰🇷'}</span>
+      <div className="wl-item-info">
+        <span className="wl-item-name">{item.name}</span>
+        <span className="wl-item-code">{item.symbol}</span>
+      </div>
+      <div className="wl-item-right">
+        <div className="wl-price-col">
+          <span className="wl-item-price">{formatPrice(price)}</span>
+          {changePct != null && (
+            <span className={`wl-change ${changePct >= 0 ? 'up' : 'down'}`}>
+              {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%
+            </span>
+          )}
+        </div>
+        <button
+          className="wl-star-btn starred"
+          onClick={onToggle}
+        >
+          ⭐
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function WatchlistTab({ currentSymbol }: Props) {
   const [query, setQuery] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -24,7 +113,9 @@ export function WatchlistTab({ currentSymbol }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
 
   const { setSymbol, livePrices, setLivePrice, prevCloses, setPrevClose } = useAppStore()
-  const { watchlist, isInWatchlist, toggle } = useWatchlist()
+  const { watchlist, isInWatchlist, toggle, reorder } = useWatchlist()
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const { subscribe } = usePriceSocket((sym, price) => setLivePrice(sym, price))
   useEffect(() => {
@@ -61,16 +152,24 @@ export function WatchlistTab({ currentSymbol }: Props) {
 
   const isOverseas = (symbol: string) => !/^\d+$/.test(symbol)
 
-  const formatPrice = (symbol: string, price?: number) => {
-    if (price == null) return '—'
-    return isOverseas(symbol) ? `$${price.toFixed(2)}` : price.toLocaleString()
-  }
-
   const filtered = watchlist.filter(item => {
     if (filter === 'all') return true
     const mtype = item.market_type ?? (isOverseas(item.symbol) ? 'US' : 'KR')
     return mtype === filter
   })
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = filtered.findIndex(i => i.symbol === active.id)
+    const newIndex = filtered.findIndex(i => i.symbol === over.id)
+    const reordered = arrayMove(filtered, oldIndex, newIndex)
+
+    // filter 밖 종목들(다른 market_type)을 원래 위치에 유지하면서 합치기
+    const others = watchlist.filter(i => !filtered.some(f => f.symbol === i.symbol))
+    reorder([...reordered, ...others])
+  }
 
   return (
     <div className="watchlist-tab">
@@ -131,42 +230,21 @@ export function WatchlistTab({ currentSymbol }: Props) {
             {watchlist.length === 0 ? '검색 후 ☆로 추가' : '해당 종목 없음'}
           </div>
         )}
-        {filtered.map(item => {
-          const price     = livePrices[item.symbol] ?? item.price
-          const prevClose = prevCloses[item.symbol]
-          const changePct = price != null && prevClose != null && prevClose > 0
-            ? ((price - prevClose) / prevClose) * 100
-            : null
-          return (
-            <div
-              key={item.symbol}
-              className={`wl-item ${item.symbol === currentSymbol ? 'active' : ''}`}
-              onClick={() => setSymbol(item.symbol, item.name)}
-            >
-              <span className="wl-flag">{isOverseas(item.symbol) ? '🇺🇸' : '🇰🇷'}</span>
-              <div className="wl-item-info">
-                <span className="wl-item-name">{item.name}</span>
-                <span className="wl-item-code">{item.symbol}</span>
-              </div>
-              <div className="wl-item-right">
-                <div className="wl-price-col">
-                  <span className="wl-item-price">{formatPrice(item.symbol, price)}</span>
-                  {changePct != null && (
-                    <span className={`wl-change ${changePct >= 0 ? 'up' : 'down'}`}>
-                      {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-                <button
-                  className="wl-star-btn starred"
-                  onClick={e => { e.stopPropagation(); toggle(item.symbol, item.name) }}
-                >
-                  ⭐
-                </button>
-              </div>
-            </div>
-          )
-        })}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filtered.map(i => i.symbol)} strategy={verticalListSortingStrategy}>
+            {filtered.map(item => (
+              <SortableItem
+                key={item.symbol}
+                item={item}
+                currentSymbol={currentSymbol}
+                livePrices={livePrices}
+                prevCloses={prevCloses}
+                onSelect={() => setSymbol(item.symbol, item.name)}
+                onToggle={e => { e.stopPropagation(); toggle(item.symbol, item.name) }}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </div>
     </div>
   )

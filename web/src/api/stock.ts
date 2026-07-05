@@ -53,6 +53,13 @@ export const api = {
     fetch(`/api/watchlist/${symbol}?uid=${encodeURIComponent(uid)}`, { method: 'DELETE' })
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() }),
 
+  reorderWatchlist: (items: { stock_code: string; sort_order: number }[], uid: string) =>
+    fetch(`/api/watchlist/reorder?uid=${encodeURIComponent(uid)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() }),
+
   journal: (uid: string) =>
     get<JournalTrade[]>('/journal', { uid }),
 

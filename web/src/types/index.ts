@@ -22,6 +22,7 @@ export interface WatchlistItem {
   name: string
   market_type?: 'KR' | 'US'
   price?: number
+  sort_order?: number
 }
 
 export type Period = 'D' | 'W'

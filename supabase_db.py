@@ -176,13 +176,16 @@ class SupabaseDB:
         """관심 종목 추가"""
         if not SupabaseDB.is_connected():
             return None
-        payload = {
-            "stock_code": stock_code,
-            "stock_name": stock_name,
-            "market_type": market_type,
-            "user_id": user_id,
-        }
         try:
+            max_resp = supabase.table("watchlist").select("sort_order").eq("user_id", user_id).order("sort_order", desc=True).limit(1).execute()
+            next_order = (max_resp.data[0]["sort_order"] or 0) + 1 if max_resp.data else 1
+            payload = {
+                "stock_code": stock_code,
+                "stock_name": stock_name,
+                "market_type": market_type,
+                "user_id": user_id,
+                "sort_order": next_order,
+            }
             response = supabase.table("watchlist").insert(payload).execute()
             return response.data[0] if response.data else None
         except Exception as e:
@@ -195,11 +198,24 @@ class SupabaseDB:
         if not SupabaseDB.is_connected():
             return []
         try:
-            response = supabase.table("watchlist").select("*").eq("user_id", user_id).order("created_at", desc=False).execute()
+            response = supabase.table("watchlist").select("*").eq("user_id", user_id).order("sort_order", desc=False).execute()
             return response.data if response.data else []
         except Exception as e:
             print(f"DB Fetch Watchlist Error: {e}")
             return []
+
+    @staticmethod
+    def reorder_watchlist(user_id: str, items: list) -> bool:
+        """관심 종목 순서 변경: items = [{"stock_code": ..., "sort_order": ...}, ...]"""
+        if not SupabaseDB.is_connected():
+            return False
+        try:
+            for item in items:
+                supabase.table("watchlist").update({"sort_order": item["sort_order"]}).eq("stock_code", item["stock_code"]).eq("user_id", user_id).execute()
+            return True
+        except Exception as e:
+            print(f"DB Reorder Watchlist Error: {e}")
+            return False
 
     @staticmethod
     def delete_watchlist(stock_code: str, user_id: str) -> bool:
